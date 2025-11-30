@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/otp_page.dart';
 import 'features/common/presentation/widgets/main_scaffold.dart';
+import 'features/common/presentation/pages/splash_page.dart';
 import 'features/create_order/presentation/pages/create_order_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
@@ -13,26 +14,16 @@ import 'features/profile/presentation/pages/profile_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginPage(),
-      ),
-      GoRoute(
-        path: '/otp',
-        builder: (context, state) => const OtpPage(),
-      ),
+      GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+      GoRoute(path: '/otp', builder: (context, state) => const OtpPage()),
       ShellRoute(
-        builder: (context, state, child) => MainScaffold(
-          location: state.uri.toString(),
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            MainScaffold(location: state.uri.toString(), child: child),
         routes: [
-          GoRoute(
-            path: '/home',
-            builder: (context, state) => const HomePage(),
-          ),
+          GoRoute(path: '/home', builder: (context, state) => const HomePage()),
           GoRoute(
             path: '/orders',
             builder: (context, state) => const OrdersPage(),
