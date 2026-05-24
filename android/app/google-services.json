@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1079640672389",
+    "project_id": "shivesh-a867f",
+    "storage_bucket": "shivesh-a867f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1079640672389:android:957c63460ee5c62f68c1ec",
+        "android_client_info": {
+          "package_name": "com.shivesh.app.shivesh_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqfjmCba8TdbMIEaylJdseBpeC9ZYx6rA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
