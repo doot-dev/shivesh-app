@@ -1,18 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/providers/auth_providers.dart';
 
-class SplashPage extends StatefulWidget {
+class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
 
   @override
-  State<SplashPage> createState() => _SplashPageState();
+  ConsumerState<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
+class _SplashPageState extends ConsumerState<SplashPage>
+    with TickerProviderStateMixin {
   late final AnimationController _blobController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
@@ -41,12 +44,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 3), _goToLogin);
+    _timer = Timer(const Duration(seconds: 3), _routeOnwards);
   }
 
-  void _goToLogin() {
+  /// Send a returning client straight to Home. The stored token is restored
+  /// asynchronously on startup, so routing to `/login` unconditionally here
+  /// would bounce an already-authenticated user back through login.
+  void _routeOnwards() {
     if (!mounted) return;
-    context.go('/login');
+    final isLoggedIn = ref.read(authProvider).isLoggedIn;
+    context.go(isLoggedIn ? '/home' : '/login');
   }
 
   @override
