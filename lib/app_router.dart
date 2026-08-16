@@ -13,7 +13,40 @@ import 'features/home/presentation/pages/project_detail_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
 import 'features/orders/presentation/pages/order_details_page.dart';
 import 'features/orders/presentation/pages/orders_page.dart';
+import 'core/theme/app_colors.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
+
+/// Slide-up + fade transition for pushed detail screens.
+///
+/// GoRouter's default on Android is a hard cut for custom builders; this keeps
+/// navigation feeling continuous with the rest of the motion in the app.
+CustomTransitionPage<void> _slidePage(
+  GoRouterState state,
+  Widget child,
+) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: AppStyles.medium,
+    reverseTransitionDuration: AppStyles.fast,
+    transitionsBuilder: (context, animation, secondary, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: AppStyles.curve,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.04),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
 
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
@@ -26,8 +59,9 @@ class _RouterNotifier extends ChangeNotifier {
     final isLoggedIn = _ref.read(authProvider).isLoggedIn;
     final loc = state.matchedLocation;
 
-    final isAuthRoute =
-        loc == '/login' || loc == '/otp' || loc == '/splash';
+    // Login is 2-step: /login collects the number, /otp completes it. Both must
+    // stay reachable while logged out.
+    final isAuthRoute = loc == '/login' || loc == '/otp' || loc == '/splash';
 
     if (!isLoggedIn && !isAuthRoute) return '/login';
     if (isLoggedIn && (loc == '/login' || loc == '/otp')) return '/home';
@@ -65,21 +99,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/orders/:id',
-        builder: (context, state) =>
-            OrderDetailsPage(orderId: state.pathParameters['id']!),
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          OrderDetailsPage(orderId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/projects/:id',
-        builder: (context, state) =>
-            ProjectDetailPage(projectId: state.pathParameters['id']!),
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          ProjectDetailPage(projectId: state.pathParameters['id']!),
+        ),
       ),
       GoRoute(
         path: '/create-order',
-        builder: (context, state) => const CreateOrderPage(),
+        pageBuilder: (context, state) =>
+            _slidePage(state, const CreateOrderPage()),
       ),
       GoRoute(
         path: '/notifications',
-        builder: (context, state) => const NotificationsPage(),
+        pageBuilder: (context, state) =>
+            _slidePage(state, const NotificationsPage()),
       ),
     ],
   );
