@@ -38,6 +38,26 @@ dev_dependencies:
   build_runner: ^2.7.1
   freezed: ^3.2.3
   json_serializable: ^6.11.2
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher icons for Android + iOS, generated from the Shivesh logo.
+#
+# Regenerate with:
+#   python3 tool/make_icons.py          # rebuild sources from assets/logo/logo.png
+#   dart run flutter_launcher_icons     # write platform icon sets
+#
+# The sources are the lotus MARK only (no wordmark) — see tool/make_icons.py.
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/logo/icon_source.png"
+  # Android adaptive icon: white plate + inset mark, so the system mask
+  # (circle / squircle / teardrop) never clips the artwork.
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo/icon_foreground.png"
+  # iOS rejects any alpha channel in the app icon; flatten it onto white.
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
 
 flutter:
   uses-material-design: true
