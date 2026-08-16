@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/animations.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
+import '../widgets/order_card.dart';
 
 class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
@@ -21,6 +24,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Rebuild on tab change so the segmented control repaints its selection.
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -33,58 +40,203 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
   Widget build(BuildContext context) {
     final activeAsync = ref.watch(activeOrdersProvider);
     final pastAsync = ref.watch(pastOrdersProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: const BackButton(color: AppColors.textPrimary),
-        title: const Text('Orders'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: _buildTabBar(),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _AsyncOrderList(asyncOrders: activeAsync),
-          _AsyncOrderList(asyncOrders: pastAsync, isPast: true),
+          // Gradient header, matching Home so the shell feels continuous.
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppColors.brandGradient,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(AppStyles.radiusXl),
+                bottomRight: Radius.circular(AppStyles.radiusXl),
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Orders',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        PressableScale(
+                          onTap: () => context.push('/notifications'),
+                          child: Container(
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.notifications_none_rounded,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _SegmentedTabs(
+                      controller: _tabController,
+                      labels: const ['Active', 'Past'],
+                      counts: [
+                        activeAsync.value?.length,
+                        pastAsync.value?.length,
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _AsyncOrderList(asyncOrders: activeAsync, isPast: false),
+                _AsyncOrderList(asyncOrders: pastAsync, isPast: true),
+              ],
+            ),
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/create-order'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, size: 28),
+      floatingActionButton: PressableScale(
+        onTap: () => context.push('/create-order'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          decoration: BoxDecoration(
+            gradient: AppColors.brandGradient,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: AppStyles.raisedShadow,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 6),
+              Text(
+                'New order',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildTabBar() {
-    return TabBar(
-      controller: _tabController,
-      labelColor: AppColors.primary,
-      unselectedLabelColor: AppColors.textMuted,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-      unselectedLabelStyle: const TextStyle(
-        fontWeight: FontWeight.w400,
-        fontSize: 14,
+/// Pill-style segmented control with a sliding selection.
+///
+/// Replaces the default underline TabBar, which looked washed out on the
+/// gradient header.
+class _SegmentedTabs extends StatelessWidget {
+  const _SegmentedTabs({
+    required this.controller,
+    required this.labels,
+    required this.counts,
+  });
+
+  final TabController controller;
+  final List<String> labels;
+  final List<int?> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
       ),
-      indicatorColor: AppColors.primary,
-      indicatorWeight: 3,
-      indicatorSize: TabBarIndicatorSize.label,
-      dividerColor: AppColors.border,
-      tabs: const [Tab(text: 'Active'), Tab(text: 'Past')],
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final selected = controller.index == i;
+          final count = counts.length > i ? counts[i] : null;
+
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => controller.animateTo(i),
+              child: AnimatedContainer(
+                duration: AppStyles.medium,
+                curve: AppStyles.curve,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedDefaultTextStyle(
+                      duration: AppStyles.fast,
+                      style:
+                          theme.textTheme.labelLarge?.copyWith(
+                            color: selected
+                                ? AppColors.primary
+                                : Colors.white.withValues(alpha: 0.85),
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ) ??
+                          const TextStyle(),
+                      child: Text(labels[i]),
+                    ),
+                    if (count != null && count > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: selected ? AppColors.primary : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 }
 
 class _AsyncOrderList extends ConsumerWidget {
-  const _AsyncOrderList({required this.asyncOrders, this.isPast = false});
+  const _AsyncOrderList({required this.asyncOrders, required this.isPast});
 
   final AsyncValue<List<Order>> asyncOrders;
   final bool isPast;
@@ -92,232 +244,58 @@ class _AsyncOrderList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return asyncOrders.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Failed to load orders',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textMuted,
+      loading: () => ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, __) => const SkeletonCard(),
+      ),
+      error: (e, _) => ErrorState(
+        message: 'We couldn\'t load your orders. Check your connection.',
+        onRetry: () => _invalidate(ref),
+      ),
+      data: (orders) {
+        if (orders.isEmpty) {
+          return EmptyState(
+            icon: isPast
+                ? Icons.history_rounded
+                : Icons.local_shipping_outlined,
+            title: isPast ? 'No past orders' : 'No active orders',
+            message: isPast
+                ? 'Completed orders will show up here.'
+                : 'Place an order and follow it live.',
+            actionLabel: isPast ? null : 'New order',
+            onAction: isPast ? null : () => context.push('/create-order'),
+          );
+        }
+
+        return RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async {
+            _invalidate(ref);
+            await Future<void>.delayed(const Duration(milliseconds: 350));
+          },
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+            itemCount: orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => FadeSlideIn(
+              index: index,
+              child: OrderCard(
+                order: orders[index],
+                onTap: () => context.push('/orders/${orders[index].id}'),
               ),
             ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () => ref.invalidate(
-                isPast ? pastOrdersProvider : activeOrdersProvider,
-              ),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-      data: (orders) => _OrderList(orders: orders, isPast: isPast),
-    );
-  }
-}
-
-class _OrderList extends StatelessWidget {
-  const _OrderList({required this.orders, this.isPast = false});
-
-  final List<Order> orders;
-  final bool isPast;
-
-  @override
-  Widget build(BuildContext context) {
-    if (orders.isEmpty) {
-      return Center(
-        child: Text(
-          'No ${isPast ? 'past' : 'active'} orders',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textMuted,
           ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) =>
-          _OrderCard(order: orders[index], isPast: isPast),
+        );
+      },
     );
   }
-}
 
-class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order, this.isPast = false});
-
-  final Order order;
-  final bool isPast;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: () => context.push('/orders/${order.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isPast ? Colors.white : AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-          boxShadow: isPast
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  isPast ? '#ORD ${order.id}' : order.projectName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                _StatusBadge(status: order.status),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (isPast) ...[
-              Row(
-                children: [
-                  _InfoItem(label: 'Project', value: order.projectName),
-                  const SizedBox(width: 24),
-                  _InfoItem(label: 'Product', value: order.product),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _InfoItem(label: 'Grade', value: order.grade),
-                  const SizedBox(width: 24),
-                  _InfoItem(label: 'Quantity', value: order.quantity),
-                  const SizedBox(width: 24),
-                  _InfoItem(label: 'Date', value: order.date),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _InfoItem(label: 'Field Technician', value: order.fieldTechnician),
-            ] else ...[
-              Row(
-                children: [
-                  _InfoItem(label: 'Grade', value: order.grade),
-                  const SizedBox(width: 24),
-                  _InfoItem(label: 'Quantity', value: order.quantity),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _InfoItem(label: 'Product', value: order.product),
-                  const SizedBox(width: 24),
-                  _InfoItem(label: 'Date', value: order.date),
-                  const SizedBox(width: 24),
-                  _InfoItem(label: 'Time', value: order.time),
-                ],
-              ),
-              const Divider(height: 18, color: AppColors.border),
-              Text(
-                'Field Technician: ${order.fieldTechnician}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoItem extends StatelessWidget {
-  const _InfoItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppColors.textMuted,
-            fontSize: 11,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final OrderStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    String label;
-
-    switch (status) {
-      case OrderStatus.active:
-        bg = const Color(0xFFD1FAE5);
-        fg = const Color(0xFF065F46);
-        label = '• Active';
-        break;
-      case OrderStatus.completed:
-        bg = const Color(0xFFD1FAE5);
-        fg = const Color(0xFF065F46);
-        label = 'Completed';
-        break;
-      case OrderStatus.pending:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFF92400E);
-        label = 'Pending';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: fg,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
+  void _invalidate(WidgetRef ref) {
+    ref.invalidate(isPast ? pastOrdersProvider : activeOrdersProvider);
   }
 }
