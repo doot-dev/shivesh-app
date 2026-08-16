@@ -12,7 +12,10 @@ String _fmtTimeAgo(String? iso) {
   }
 }
 
-OrderStatus _mapOrderStatus(String? s) {
+/// Map a backend order status string (`NEW`, `IN_PROGRESS`, `DELIVERED`, …)
+/// to the tri-state the UI renders. Shared with the realtime layer, which
+/// receives raw status strings over the WebSocket.
+OrderStatus mapOrderStatus(String? s) {
   switch (s) {
     case 'DELIVERED':
     case 'COMPLETED':
@@ -49,14 +52,14 @@ class TmDetail {
   final String? challanUrl;
 
   factory TmDetail.fromJson(Map<String, dynamic> json) => TmDetail(
-        tmNumber: json['tmNumber'] as String? ?? '',
-        truckNo: json['truckNo'] as String? ?? '',
-        qty: json['qty'] as String? ?? '',
-        batchStartTime: json['batchStartTime'] as String? ?? '',
-        batchEndTime: json['batchEndTime'] as String? ?? '',
-        challanNo: json['challanNo'] as String? ?? '',
-        challanUrl: json['challanUrl'] as String?,
-      );
+    tmNumber: json['tmNumber'] as String? ?? '',
+    truckNo: json['truckNo'] as String? ?? '',
+    qty: json['qty'] as String? ?? '',
+    batchStartTime: json['batchStartTime'] as String? ?? '',
+    batchEndTime: json['batchEndTime'] as String? ?? '',
+    challanNo: json['challanNo'] as String? ?? '',
+    challanUrl: json['challanUrl'] as String?,
+  );
 }
 
 class Comment {
@@ -65,6 +68,8 @@ class Comment {
     required this.message,
     required this.timeAgo,
     required this.isMe,
+    this.id,
+    this.pending = false,
   });
 
   final String author;
@@ -72,12 +77,28 @@ class Comment {
   final String timeAgo;
   final bool isMe;
 
+  /// Server id. Null for a locally-echoed comment that has not round-tripped.
+  final String? id;
+
+  /// True while an optimistic comment is still in flight — the UI dims it.
+  final bool pending;
+
   factory Comment.fromJson(Map<String, dynamic> json) => Comment(
-        author: json['authorName'] as String? ?? '',
-        message: json['message'] as String? ?? '',
-        timeAgo: _fmtTimeAgo(json['createdAt'] as String?),
-        isMe: (json['authorType'] as String?) == 'CLIENT',
-      );
+    id: json['id'] as String?,
+    author: json['authorName'] as String? ?? '',
+    message: json['message'] as String? ?? '',
+    timeAgo: _fmtTimeAgo(json['createdAt'] as String?),
+    isMe: (json['authorType'] as String?) == 'CLIENT',
+  );
+
+  Comment copyWith({bool? pending}) => Comment(
+    id: id,
+    author: author,
+    message: message,
+    timeAgo: timeAgo,
+    isMe: isMe,
+    pending: pending ?? this.pending,
+  );
 }
 
 class Order {
@@ -111,6 +132,32 @@ class Order {
   final List<TmDetail> tmDetails;
   final List<Comment> comments;
 
+  Order copyWith({OrderStatus? status, List<Comment>? comments}) => Order(
+    id: id,
+    projectName: projectName,
+    status: status ?? this.status,
+    grade: grade,
+    quantity: quantity,
+    product: product,
+    date: date,
+    time: time,
+    fieldTechnician: fieldTechnician,
+    site: site,
+    deliveryAddress: deliveryAddress,
+    tmDetails: tmDetails,
+    comments: comments ?? this.comments,
+  );
+
+  /// True when a real technician is attached.
+  ///
+  /// [fieldTechnician] falls back to the literal string 'Not assigned' in
+  /// [Order.fromJson], so a plain isNotEmpty check is always true and the UI
+  /// ends up rendering an avatar with the initial "N". Use this instead.
+  bool get hasTechnician {
+    final t = fieldTechnician.trim();
+    return t.isNotEmpty && t.toLowerCase() != 'not assigned';
+  }
+
   String get statusLabel {
     switch (status) {
       case OrderStatus.active:
@@ -131,7 +178,7 @@ class Order {
     return Order(
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
       projectName: project?['projectName'] as String? ?? '',
-      status: _mapOrderStatus(json['status'] as String?),
+      status: mapOrderStatus(json['status'] as String?),
       grade: json['productGrade'] as String? ?? '',
       quantity: json['quantity'] as String? ?? '',
       product: json['productName'] as String? ?? '',
@@ -140,10 +187,12 @@ class Order {
       fieldTechnician: assignedTo?['name'] as String? ?? 'Not assigned',
       site: project?['siteName'] as String?,
       deliveryAddress: json['deliveryAddress'] as String?,
-      tmDetails:
-          tmList.map((t) => TmDetail.fromJson(t as Map<String, dynamic>)).toList(),
-      comments:
-          commentList.map((c) => Comment.fromJson(c as Map<String, dynamic>)).toList(),
+      tmDetails: tmList
+          .map((t) => TmDetail.fromJson(t as Map<String, dynamic>))
+          .toList(),
+      comments: commentList
+          .map((c) => Comment.fromJson(c as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
