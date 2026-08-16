@@ -257,25 +257,26 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             // ── Product Name ──────────────────────────────────────────────
             _FieldLabel('Product Name'),
             const SizedBox(height: 8),
-            if (_selectedProjectId == null)
-              _SelectableField(
-                fieldKey: _productFieldKey,
-                value: null,
-                hint: 'Select a project first',
-                onTap: null,
-                enabled: false,
-                validator: (v) => v == null ? 'Please select a product' : null,
-              )
-            else if (projectProductsAsync!.isLoading)
+            // NOTE: both branches below must share ONE _SelectableField, not two.
+            // Giving the same GlobalKey to two widgets in different branches
+            // throws "Duplicate GlobalKey detected in widget tree" while Flutter
+            // holds the outgoing element during the swap, which breaks the form.
+            if (_selectedProjectId != null && projectProductsAsync!.isLoading)
               const _LoadingField()
-            else if (projectProductsAsync.hasError)
+            else if (_selectedProjectId != null &&
+                projectProductsAsync!.hasError)
               const _ErrorField('Failed to load products')
             else
               _SelectableField(
                 fieldKey: _productFieldKey,
-                value: _selectedProduct,
-                hint: 'Select product',
-                onTap: () => _selectProduct(productNames ?? []),
+                value: _selectedProjectId == null ? null : _selectedProduct,
+                hint: _selectedProjectId == null
+                    ? 'Select a project first'
+                    : 'Select product',
+                onTap: _selectedProjectId == null
+                    ? null
+                    : () => _selectProduct(productNames ?? []),
+                enabled: _selectedProjectId != null,
                 validator: (v) => v == null ? 'Please select a product' : null,
               ),
             const SizedBox(height: 20),
@@ -283,24 +284,20 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             // ── Product Grade ─────────────────────────────────────────────
             _FieldLabel('Product Grade'),
             const SizedBox(height: 8),
-            if (_selectedProduct == null)
+            // Single field for both states — see the GlobalKey note above.
+            if (_selectedProduct == null || gradeOptions != null)
               _SelectableField(
                 fieldKey: _gradeFieldKey,
-                value: null,
-                hint: _selectedProjectId == null
-                    ? 'Select a project first'
-                    : 'Select a product first',
-                onTap: null,
-                enabled: false,
-                validator: (v) =>
-                    v == null ? 'Please select a product grade' : null,
-              )
-            else if (gradeOptions != null)
-              _SelectableField(
-                fieldKey: _gradeFieldKey,
-                value: _selectedGrade,
-                hint: 'Select grade',
-                onTap: () => _selectGrade(gradeOptions),
+                value: _selectedProduct == null ? null : _selectedGrade,
+                hint: _selectedProduct != null
+                    ? 'Select grade'
+                    : _selectedProjectId == null
+                        ? 'Select a project first'
+                        : 'Select a product first',
+                onTap: _selectedProduct == null || gradeOptions == null
+                    ? null
+                    : () => _selectGrade(gradeOptions),
+                enabled: _selectedProduct != null && gradeOptions != null,
                 validator: (v) =>
                     v == null ? 'Please select a product grade' : null,
               ),
