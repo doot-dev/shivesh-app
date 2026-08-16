@@ -19,7 +19,11 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.9.1" apply false
+    // AGP 8.9.x cannot parse a Java 25 version string and dies with a bare
+    // `IllegalArgumentException: 25.0.2` during Gradle configuration. 8.13.0 is
+    // the first release that handles JDK 25, which is what ships with the
+    // current Android Studio JBR. Requires Gradle >= 8.13 (see gradle-wrapper).
+    id("com.android.application") version "8.13.0" apply false
     id("org.jetbrains.kotlin.android") version "2.2.21" apply false
     id("com.google.gms.google-services") version "4.4.2" apply false
 }
