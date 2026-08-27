@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/providers/client_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/order_date_rules.dart';
 import '../../../home/data/models/home_models.dart';
 import '../../../home/providers/home_providers.dart';
 import '../../../orders/providers/orders_providers.dart';
@@ -42,11 +43,21 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
   }
 
   Future<void> _pickDate() async {
+    // Orders can only be booked up to 3 months out, so the calendar greys out
+    // anything beyond that rather than letting the server reject it later.
+    final first = startOfToday();
+    final last = maxOrderDate();
+    final current = _selectedDate;
+    final initial = (current != null && isOrderDateAllowed(current))
+        ? current
+        : first;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initial,
+      firstDate: first,
+      lastDate: last,
+      helpText: 'Select delivery date',
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: Theme.of(
@@ -150,6 +161,16 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
     if (_formKey.currentState?.validate() != true) return;
     if (_selectedDate == null) {
       _showSnack('Please select a delivery date');
+      return;
+    }
+    // Belt and braces: the picker already caps the range, but a date chosen
+    // before midnight rolled over can fall out of the window while the form
+    // is still open.
+    if (!isOrderDateAllowed(_selectedDate!)) {
+      _showSnack(
+        'Orders can only be booked up to $kMaxOrderMonthsAhead months ahead '
+        '(latest ${DateFormat('MMM dd, yyyy').format(maxOrderDate())})',
+      );
       return;
     }
     if (_selectedTime == null) {
@@ -334,6 +355,27 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
               hint: 'Select date',
               icon: Icons.calendar_today_outlined,
               onTap: _pickDate,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Orders can be booked up to $kMaxOrderMonthsAhead months ahead '
+                    '(till ${DateFormat('MMM dd, yyyy').format(maxOrderDate())})',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             _QuickSelectRow(
