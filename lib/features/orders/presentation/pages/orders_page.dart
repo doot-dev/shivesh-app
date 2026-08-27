@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_widgets.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
 import '../widgets/order_card.dart';
+import '../widgets/order_search_bar.dart';
 
 class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
@@ -26,8 +27,36 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
     _tabController = TabController(length: 2, vsync: this);
     // Rebuild on tab change so the segmented control repaints its selection.
     _tabController.addListener(() {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      if (!_tabController.indexIsChanging) {
+        // Keep the search text across tabs — someone looking for one project
+        // usually wants to check both queues.
+        ref
+            .read(orderFilterProvider.notifier)
+            .setType(_tabController.index == 1 ? 'past' : 'active');
+      }
+      setState(() {});
     });
+  }
+
+  Future<void> _pickDateRange() async {
+    final filter = ref.read(orderFilterProvider);
+    final now = DateTime.now();
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 2, 12, 31),
+      initialDateRange: filter.from != null && filter.to != null
+          ? DateTimeRange(start: filter.from!, end: filter.to!)
+          : null,
+      helpText: 'Filter by delivery date',
+      saveText: 'Apply',
+    );
+
+    if (picked != null && mounted) {
+      ref.read(orderFilterProvider.notifier).setRange(picked.start, picked.end);
+    }
   }
 
   @override
@@ -38,8 +67,14 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
 
   @override
   Widget build(BuildContext context) {
-    final activeAsync = ref.watch(activeOrdersProvider);
-    final pastAsync = ref.watch(pastOrdersProvider);
+    final filter = ref.watch(orderFilterProvider);
+    final notifier = ref.read(orderFilterProvider.notifier);
+
+    final activeFilter = filter.copyWith(type: 'active');
+    final pastFilter = filter.copyWith(type: 'past');
+
+    final activeAsync = ref.watch(searchedOrdersProvider(activeFilter));
+    final pastAsync = ref.watch(searchedOrdersProvider(pastFilter));
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -88,7 +123,15 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
+                    OrderSearchBar(
+                      onQueryChanged: notifier.setQuery,
+                      onPickDates: _pickDateRange,
+                      onClearDates: notifier.clearDates,
+                      dateLabel: dateRangeLabel(filter.from, filter.to),
+                      hasDateFilter: filter.hasDate,
+                    ),
+                    const SizedBox(height: 14),
                     _SegmentedTabs(
                       controller: _tabController,
                       labels: const ['Active', 'Past'],
@@ -102,12 +145,28 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
               ),
             ),
           ),
+          if (filter.isActive)
+            _FilterSummary(
+              filter: filter,
+              resultCount: (_tabController.index == 1 ? pastAsync : activeAsync)
+                  .value
+                  ?.length,
+              onClear: notifier.clear,
+            ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _AsyncOrderList(asyncOrders: activeAsync, isPast: false),
-                _AsyncOrderList(asyncOrders: pastAsync, isPast: true),
+                _AsyncOrderList(
+                  asyncOrders: activeAsync,
+                  isPast: false,
+                  filter: activeFilter,
+                ),
+                _AsyncOrderList(
+                  asyncOrders: pastAsync,
+                  isPast: true,
+                  filter: pastFilter,
+                ),
               ],
             ),
           ),
@@ -235,11 +294,71 @@ class _SegmentedTabs extends StatelessWidget {
   }
 }
 
+/// Thin bar under the header showing what's filtered and a one-tap reset.
+class _FilterSummary extends StatelessWidget {
+  const _FilterSummary({
+    required this.filter,
+    required this.resultCount,
+    required this.onClear,
+  });
+
+  final OrderFilter filter;
+  final int? resultCount;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final parts = <String>[
+      if (filter.hasQuery) '"${filter.query.trim()}"',
+      if (filter.hasDate) dateRangeLabel(filter.from, filter.to),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              resultCount == null
+                  ? 'Searching ${parts.join(' · ')}'
+                  : '$resultCount result${resultCount == 1 ? '' : 's'} for ${parts.join(' · ')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onClear,
+            behavior: HitTestBehavior.opaque,
+            child: Text(
+              'Clear',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AsyncOrderList extends ConsumerWidget {
-  const _AsyncOrderList({required this.asyncOrders, required this.isPast});
+  const _AsyncOrderList({
+    required this.asyncOrders,
+    required this.isPast,
+    required this.filter,
+  });
 
   final AsyncValue<List<Order>> asyncOrders;
   final bool isPast;
+  final OrderFilter filter;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -256,6 +375,16 @@ class _AsyncOrderList extends ConsumerWidget {
       ),
       data: (orders) {
         if (orders.isEmpty) {
+          // A search that found nothing is a different situation from an empty
+          // queue — showing "No active orders" there reads as a bug, and
+          // offering "New order" is the wrong next step.
+          if (filter.isActive) {
+            return const EmptyState(
+              icon: Icons.search_off_rounded,
+              title: 'No matching orders',
+              message: 'Try a different name, order number or date.',
+            );
+          }
           return EmptyState(
             icon: isPast
                 ? Icons.history_rounded
@@ -296,6 +425,10 @@ class _AsyncOrderList extends ConsumerWidget {
   }
 
   void _invalidate(WidgetRef ref) {
-    ref.invalidate(isPast ? pastOrdersProvider : activeOrdersProvider);
+    ref.invalidate(searchedOrdersProvider(filter));
+    // The unfiltered providers back the no-filter case, so refresh those too.
+    if (!filter.isActive) {
+      ref.invalidate(isPast ? pastOrdersProvider : activeOrdersProvider);
+    }
   }
 }

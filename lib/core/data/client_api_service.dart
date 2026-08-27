@@ -38,10 +38,29 @@ class ClientApiService {
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<List<Order>> getOrders({String type = 'active'}) async {
+  /// The client's own orders. [type] is `active` or `past`.
+  ///
+  /// [query] is free text matched server-side against the order code, project
+  /// name, product and grade. [dateFrom]/[dateTo] filter by delivery date and
+  /// MUST be ISO `yyyy-MM-dd` — the backend ignores any other format rather
+  /// than erroring, so a wrong format looks like "the filter did nothing".
+  ///
+  /// Blank values are omitted so an empty search box behaves like no filter.
+  Future<List<Order>> getOrders({
+    String type = 'active',
+    String? query,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
+    final q = query?.trim() ?? '';
     final res = await _dio.get(
       '$_base/orders',
-      queryParameters: {'type': type},
+      queryParameters: {
+        'type': type,
+        if (q.isNotEmpty) 'q': q,
+        if (dateFrom != null && dateFrom.isNotEmpty) 'dateFrom': dateFrom,
+        if (dateTo != null && dateTo.isNotEmpty) 'dateTo': dateTo,
+      },
     );
     final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
     return data.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
