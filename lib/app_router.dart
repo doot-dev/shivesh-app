@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/providers/client_api_provider.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/otp_page.dart';
 import 'features/auth/providers/auth_providers.dart';
@@ -71,7 +72,7 @@ class _RouterNotifier extends ChangeNotifier {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final notifier = _RouterNotifier(ref);
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: notifier.redirect,
@@ -123,4 +124,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Notification taps open the thing the notification is about.
+  //
+  // Both guards are deliberate: routing while signed out would land the user on
+  // a screen that 401s, and the redirect would bounce them to /login anyway.
+  final notifications = ref.read(notificationServiceProvider);
+
+  final orderSub = notifications.onOrderTapped.listen((orderCode) {
+    if (!ref.read(authProvider).isLoggedIn) return;
+    router.push('/orders/$orderCode');
+  });
+
+  // The daily reminder has no order to open yet — send them to place one.
+  final reminderSub = notifications.onReminderTapped.listen((_) {
+    if (!ref.read(authProvider).isLoggedIn) return;
+    router.push('/create-order');
+  });
+
+  ref.onDispose(() {
+    orderSub.cancel();
+    reminderSub.cancel();
+  });
+
+  return router;
 });

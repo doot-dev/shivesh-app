@@ -3,6 +3,10 @@
          access at all (the INTERNET permission previously existed only in the
          debug/profile manifests, so release would fail every request). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ (API 33) requires this to be DECLARED before the runtime
+         prompt will even appear. Without it requestPermission() resolves as
+         denied and no order notification is ever shown. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Shivesh"
         android:name="${applicationName}"
@@ -31,6 +35,14 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <!-- FCM: the channel notifications land in when the app is in the
+             background. It MUST match _channelId in notification_service.dart —
+             a mismatch silently routes them to a low-importance channel, so they
+             arrive with no sound and no heads-up banner. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="shivesh_high_importance" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

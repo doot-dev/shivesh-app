@@ -8,6 +8,12 @@ final clientApiProvider = Provider<ClientApiService>((ref) {
   return ClientApiService(ref.read(dioProvider));
 });
 
+/// Push notifications for this client.
+///
+/// Deliberately NOT auto-disposed: the tap streams must outlive any single page
+/// so a notification opened from a cold start still routes once the app is up.
 final notificationServiceProvider = Provider<NotificationService>((ref) {
-  return NotificationService(ref.read(clientApiProvider));
+  final service = NotificationService(ref.read(clientApiProvider));
+  ref.onDispose(service.dispose);
+  return service;
 });

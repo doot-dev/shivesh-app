@@ -141,10 +141,18 @@ class ClientApiService {
     );
   }
 
+  /// Register this device for push. The backend keeps at most 5 devices per
+  /// client and evicts the oldest, so re-registering is always safe.
   Future<void> registerFcmToken(String token, String platform) async {
     await _dio.put(
       '$_base/fcm-token',
       data: {'token': token, 'platform': platform},
     );
+  }
+
+  /// Drop this device on logout so it stops receiving order updates and frees
+  /// one of the client's 5 device slots.
+  Future<void> unregisterFcmToken(String token) async {
+    await _dio.delete('$_base/fcm-token', data: {'token': token});
   }
 }

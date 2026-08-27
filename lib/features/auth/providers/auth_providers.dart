@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/auth_events.dart';
+import '../../../core/providers/client_api_provider.dart';
 import '../../../core/providers/dio_provider.dart';
 import '../../../core/providers/storage_providers.dart';
 import '../data/auth_service.dart';
@@ -232,6 +233,16 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Release the push slot BEFORE clearing the token: the unregister call is
+    // authenticated, so wiping storage first would make it 401 and leave this
+    // device occupying one of the client's 5 slots — still receiving order
+    // notifications after sign-out.
+    try {
+      await ref.read(notificationServiceProvider).unregister();
+    } catch (_) {
+      // Best effort — never block a logout on it.
+    }
+
     final storage = ref.read(secureStorageProvider);
     await storage.delete(key: tokenKey);
     await storage.delete(key: userDataKey);

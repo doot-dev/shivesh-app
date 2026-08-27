@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -31,6 +34,20 @@ class NotificationService {
   );
 
   bool _initialized = false;
+  String? _currentToken;
+
+  /// Order codes (ORD-2025-0001) from tapped notifications. The router listens
+  /// and opens /orders/<code>.
+  ///
+  /// A stream rather than a direct navigation call: this service has no
+  /// BuildContext, and a cold-start tap arrives before the router exists.
+  final _tapController = StreamController<String>.broadcast();
+  Stream<String> get onOrderTapped => _tapController.stream;
+
+  /// Fired when the daily "place tomorrow's order" reminder is tapped, so the
+  /// app can open the create-order screen instead of an order that has no id.
+  final _reminderController = StreamController<void>.broadcast();
+  Stream<void> get onReminderTapped => _reminderController.stream;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -56,10 +73,33 @@ class NotificationService {
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
     );
-    await _localNotifications.initialize(initSettings);
+    await _localNotifications.initialize(
+      initSettings,
+      // Tapping a notification this app drew itself while in the foreground.
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload == null || payload.isEmpty) return;
+        try {
+          _handleTapData(jsonDecode(payload) as Map<String, dynamic>);
+        } catch (_) {
+          // Malformed payload — nothing to route to.
+        }
+      },
+    );
 
     // Foreground message handler
     FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+
+    // Background -> tapped (app alive but not focused).
+    FirebaseMessaging.onMessageOpenedApp.listen(
+      (message) => _handleTapData(message.data),
+    );
+
+    // Cold start: the app was terminated and launched BY the notification.
+    final initialMessage = await messaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleTapData(initialMessage.data);
+    }
 
     // Register current token
     final token = await messaging.getToken();
@@ -72,12 +112,47 @@ class NotificationService {
   }
 
   Future<void> _registerToken(String token) async {
+    _currentToken = token;
     final platform =
         defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
     try {
       await _apiService.registerFcmToken(token, platform);
     } catch (_) {
       // Non-fatal: token will be retried on next refresh
+    }
+  }
+
+  /// Release this device's push slot on logout, so a signed-out phone stops
+  /// receiving order updates and frees one of the client's 5 device slots.
+  Future<void> unregister() async {
+    final token = _currentToken ?? await FirebaseMessaging.instance.getToken();
+    if (token != null) {
+      try {
+        await _apiService.unregisterFcmToken(token);
+      } catch (_) {
+        // Best effort — deleting the FCM token below still stops delivery.
+      }
+    }
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
+    _currentToken = null;
+  }
+
+  /// Route a tapped notification.
+  ///
+  /// Reads `orderCode`, NOT `orderId`: the payload's orderId is the database
+  /// cuid while /orders/:id resolves by the human order code, so routing on
+  /// orderId opens a 404.
+  void _handleTapData(Map<String, dynamic> data) {
+    if (data['type'] == 'ORDER_REMINDER') {
+      _reminderController.add(null);
+      return;
+    }
+
+    final orderCode = data['orderCode'];
+    if (orderCode is String && orderCode.isNotEmpty) {
+      _tapController.add(orderCode);
     }
   }
 
@@ -99,6 +174,13 @@ class NotificationService {
         ),
         iOS: const DarwinNotificationDetails(),
       ),
+      // Carried through so a foreground tap routes like a tray tap.
+      payload: jsonEncode(message.data),
     );
+  }
+
+  void dispose() {
+    _tapController.close();
+    _reminderController.close();
   }
 }
