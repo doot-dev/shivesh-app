@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security policy for the Shivesh client app.
+
+  Android 9 (API 28) and above block cleartext HTTP by default, which silently
+  breaks every API call when the backend is served over plain http://. The
+  Shivesh backend is currently reachable only over HTTP (both the deployed host
+  and the local dev server), so cleartext is permitted for those specific hosts
+  ONLY - everything else still requires HTTPS.
+
+  Without this, release builds (App Distribution / Play) fail EVERY request
+  while debug builds keep working, because usesCleartextTraffic="true" is
+  declared only in the debug source set and release does not merge it.
+
+  10.0.2.2 is the Android emulator's alias for the host machine's localhost, and
+  is what the app must point at when testing against a locally running backend.
+  Remove these exemptions once the backend is fronted by TLS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Deployed Shivesh backend (plain HTTP, no TLS terminator yet). -->
+        <domain includeSubdomains="false">31.97.206.154</domain>
+        <!-- Android emulator loopback alias for a backend running on the host. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- Direct localhost, used by physical-device port forwarding (adb reverse). -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
