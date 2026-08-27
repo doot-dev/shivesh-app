@@ -4,7 +4,7 @@
          debug/profile manifests, so release would fail every request). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="shivesh_app"
+        android:label="Shivesh"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

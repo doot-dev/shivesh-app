@@ -27,6 +27,7 @@ class ClientApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
+      title: 'Shivesh',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: AppTheme.light,
