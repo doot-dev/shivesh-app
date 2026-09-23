@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/auth_events.dart';
 import '../../../core/providers/client_api_provider.dart';
 import '../../../core/providers/dio_provider.dart';
+import '../../../core/providers/session_reset.dart';
 import '../../../core/providers/storage_providers.dart';
 import '../data/auth_service.dart';
 
@@ -96,6 +97,9 @@ class AuthNotifier extends Notifier<AuthState> {
     await storage.delete(key: tokenKey);
     await storage.delete(key: userDataKey);
     state = AuthState(sessionExpiredMessage: reason);
+    // Same reasoning as [logout]: the cached orders/projects/profile belong to
+    // the user whose session just ended and must not survive into the next one.
+    resetSessionData(ref);
   }
 
   /// Called by the login screen once it has shown the expiry notice.
@@ -158,6 +162,11 @@ class AuthNotifier extends Notifier<AuthState> {
       final res = await _service.verifyOtp(phone, otp);
 
       if (res['success'] == true) {
+        // Belt and braces: a session that ended WITHOUT a clean logout (crash,
+        // revoked token, app killed) leaves the old client's data cached. Wipe
+        // it before the new session's screens can read it.
+        resetSessionData(ref);
+
         final data = res['data'] as Map<String, dynamic>;
         final token = data['token'] as String;
         final storage = ref.read(secureStorageProvider);
@@ -199,6 +208,10 @@ class AuthNotifier extends Notifier<AuthState> {
     try {
       final res = await _service.loginWithNumber(number);
       if (res['success'] == true) {
+        // See [verifyOtp] — clear any data left by a session that ended without
+        // a clean logout before this client's screens can read it.
+        resetSessionData(ref);
+
         final data = res['data'] as Map<String, dynamic>;
         final token = data['token'] as String;
         final storage = ref.read(secureStorageProvider);
@@ -247,6 +260,13 @@ class AuthNotifier extends Notifier<AuthState> {
     await storage.delete(key: tokenKey);
     await storage.delete(key: userDataKey);
     state = const AuthState();
+
+    // Clearing the token is NOT enough. Every orders/projects/profile provider
+    // is a plain (non-autoDispose) provider living in the root ProviderScope,
+    // so without this the next client to sign in on this phone would see the
+    // previous client's cached data. Reset AFTER the state change so the router
+    // has already redirected to /login and nothing refetches with a dead token.
+    resetSessionData(ref);
   }
 
   String _extractError(Object e) {

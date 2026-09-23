@@ -9,6 +9,7 @@ import 'features/auth/providers/auth_providers.dart';
 import 'features/common/presentation/widgets/main_scaffold.dart';
 import 'features/common/presentation/pages/splash_page.dart';
 import 'features/create_order/presentation/pages/create_order_page.dart';
+import 'features/cube_test/presentation/pages/cube_tests_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/home/presentation/pages/project_detail_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
@@ -91,6 +92,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/orders',
             builder: (context, state) => const OrdersPage(),
+          ),
+          GoRoute(
+            path: '/cube-tests',
+            builder: (context, state) => const CubeTestsPage(),
           ),
           GoRoute(
             path: '/profile',

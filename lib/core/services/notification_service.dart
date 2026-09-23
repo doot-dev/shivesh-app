@@ -50,7 +50,15 @@ class NotificationService {
   Stream<void> get onReminderTapped => _reminderController.stream;
 
   Future<void> initialize() async {
-    if (_initialized) return;
+    // Already wired up — but do NOT stop here. [unregister] deletes the FCM
+    // token on logout, so when the next client signs in on this phone the
+    // device owns no push slot. Re-registering here is what gets THEM their
+    // notifications; returning early left them with none until a reinstall.
+    // The listeners below must not be attached twice, hence the early return.
+    if (_initialized) {
+      await _registerCurrentDevice();
+      return;
+    }
     _initialized = true;
 
     final messaging = FirebaseMessaging.instance;
@@ -102,13 +110,26 @@ class NotificationService {
     }
 
     // Register current token
-    final token = await messaging.getToken();
-    if (token != null) {
-      await _registerToken(token);
-    }
+    await _registerCurrentDevice();
 
     // Handle token refresh
     messaging.onTokenRefresh.listen(_registerToken);
+  }
+
+  /// Claim a push slot for whoever is signed in right now.
+  ///
+  /// Safe to call repeatedly: after a logout deleted the old token, `getToken`
+  /// mints a fresh one, so the new client is registered under their own account
+  /// rather than inheriting the previous user's device row.
+  Future<void> _registerCurrentDevice() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _registerToken(token);
+      }
+    } catch (_) {
+      // Non-fatal: retried on the next login / cold start.
+    }
   }
 
   Future<void> _registerToken(String token) async {

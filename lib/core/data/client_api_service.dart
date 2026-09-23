@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../features/cube_test/data/models/cube_test_model.dart';
 import '../../features/home/data/models/home_models.dart';
 import '../../features/notifications/data/models/notification_model.dart';
 import '../../features/orders/data/models/order_models.dart';
@@ -105,6 +106,35 @@ class ClientApiService {
     final responseData =
         (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
     return responseData['orderId'] as String;
+  }
+
+  /// Every cube testing report across ALL of this client's orders.
+  ///
+  /// Read-only — technicians and admins log the tests, the client views the
+  /// results. [status] is `due` (test date reached) or `upcoming`;
+  /// [dateFrom]/[dateTo] filter the CASTING date and must be ISO `yyyy-MM-dd`,
+  /// since the backend ignores any other format rather than erroring. Blank
+  /// values are omitted so an empty search behaves like no filter.
+  Future<List<CubeTestEntry>> getAllCubeTests({
+    String? query,
+    String? dateFrom,
+    String? dateTo,
+    String? status,
+  }) async {
+    final q = query?.trim() ?? '';
+    final res = await _dio.get(
+      '$_base/cube-tests',
+      queryParameters: {
+        if (q.isNotEmpty) 'q': q,
+        if (dateFrom != null && dateFrom.isNotEmpty) 'dateFrom': dateFrom,
+        if (dateTo != null && dateTo.isNotEmpty) 'dateTo': dateTo,
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
+    final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
+    return data
+        .map((e) => CubeTestEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<UserProfile> getProfile() async {

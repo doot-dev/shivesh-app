@@ -26,6 +26,12 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       'Orders',
     ),
     _NavDestination(
+      '/cube-tests',
+      Icons.science_rounded,
+      Icons.science_outlined,
+      'Cube tests',
+    ),
+    _NavDestination(
       '/profile',
       Icons.person_rounded,
       Icons.person_outline_rounded,
@@ -48,7 +54,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   int _locationToIndex(String loc) {
     if (loc.startsWith('/orders')) return 1;
-    if (loc.startsWith('/profile')) return 2;
+    if (loc.startsWith('/cube-tests')) return 2;
+    if (loc.startsWith('/profile')) return 3;
     return 0;
   }
 

@@ -27,8 +27,9 @@ class ProjectSummary {
   }
 
   static String _formatCredit(double amount) {
-    if (amount >= 10000000)
+    if (amount >= 10000000) {
       return '${(amount / 10000000).toStringAsFixed(1)} Cr';
+    }
     if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)} L';
     if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
     return amount.toStringAsFixed(0);
