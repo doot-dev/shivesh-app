@@ -18,25 +18,20 @@ import 'features/orders/presentation/pages/order_details_page.dart';
 import 'features/orders/presentation/pages/orders_page.dart';
 import 'core/theme/app_colors.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
+import 'features/team/team_page.dart';
 
 /// Slide-up + fade transition for pushed detail screens.
 ///
 /// GoRouter's default on Android is a hard cut for custom builders; this keeps
 /// navigation feeling continuous with the rest of the motion in the app.
-CustomTransitionPage<void> _slidePage(
-  GoRouterState state,
-  Widget child,
-) {
+CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
     transitionDuration: AppStyles.medium,
     reverseTransitionDuration: AppStyles.fast,
     transitionsBuilder: (context, animation, secondary, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: AppStyles.curve,
-      );
+      final curved = CurvedAnimation(parent: animation, curve: AppStyles.curve);
       return FadeTransition(
         opacity: curved,
         child: SlideTransition(
@@ -86,13 +81,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) =>
             MainScaffold(location: state.uri.toString(), child: child),
         routes: [
-          GoRoute(
-            path: '/home',
-            builder: (context, state) => const HomePage(),
-          ),
+          GoRoute(path: '/home', builder: (context, state) => const HomePage()),
           GoRoute(
             path: '/orders',
             builder: (context, state) => const OrdersPage(),
+          ),
+          // Bills & invoices is a tab now (docs/06 step 0), not a page off Profile.
+          GoRoute(
+            path: '/bills',
+            builder: (context, state) => const BillsPage(),
           ),
           GoRoute(
             path: '/cube-tests',
@@ -124,8 +121,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             _slidePage(state, const CreateOrderPage()),
       ),
       GoRoute(
-        path: '/bills',
-        pageBuilder: (context, state) => _slidePage(state, const BillsPage()),
+        path: '/team',
+        pageBuilder: (context, state) => _slidePage(state, const TeamPage()),
       ),
       GoRoute(
         path: '/notifications',

@@ -25,14 +25,13 @@ class UserProfile {
       1 - (creditDaysRemaining / creditPeriodDays).clamp(0.0, 1.0);
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
-        name: json['ownerName'] as String? ?? json['name'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        phone:
-            json['contactNumber'] as String? ?? json['phone'] as String? ?? '',
-        companyName: json['companyName'] as String? ?? '',
-        address: json['address'] as String? ?? '',
-        paymentDue: 0,
-        creditDaysRemaining: 0,
-        creditPeriodDays: 30,
-      );
+    name: json['ownerName'] as String? ?? json['name'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    phone: json['contactNumber'] as String? ?? json['phone'] as String? ?? '',
+    companyName: json['companyName'] as String? ?? '',
+    address: json['address'] as String? ?? '',
+    paymentDue: 0,
+    creditDaysRemaining: 0,
+    creditPeriodDays: 30,
+  );
 }

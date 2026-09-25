@@ -5,7 +5,14 @@ import 'package:intl/intl.dart';
 /// Wire values are the backend's `CubeTestPeriod` enum. The client app is
 /// READ-ONLY for cube tests — technicians and admins create them — so this only
 /// ever parses [fromApi], never sends.
-enum CubeTestPeriod { sevenDays, fourteenDays, fifteenDays, twentyOneDays, twentyEightDays, custom }
+enum CubeTestPeriod {
+  sevenDays,
+  fourteenDays,
+  fifteenDays,
+  twentyOneDays,
+  twentyEightDays,
+  custom,
+}
 
 extension CubeTestPeriodX on CubeTestPeriod {
   String get label {

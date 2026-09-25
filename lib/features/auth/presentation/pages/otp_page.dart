@@ -23,15 +23,9 @@ const _otpLength = 4;
 /// How long the user must wait before asking for another code.
 const _resendCooldown = 30;
 
-class _OtpPageState extends ConsumerState<OtpPage>
-    with SingleTickerProviderStateMixin {
+class _OtpPageState extends ConsumerState<OtpPage> {
   final _pinController = TextEditingController();
   final _focusNode = FocusNode();
-
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  )..forward();
 
   Timer? _cooldownTimer;
   int _secondsLeft = _resendCooldown;
@@ -65,7 +59,6 @@ class _OtpPageState extends ConsumerState<OtpPage>
     _cooldownTimer?.cancel();
     _pinController.dispose();
     _focusNode.dispose();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -277,15 +270,11 @@ class _OtpPageState extends ConsumerState<OtpPage>
                               defaultPinTheme: _pinTheme(),
                               focusedPinTheme: _pinTheme(
                                 border: AppColors.primary,
-                                fill: AppColors.primary.withValues(
-                                  alpha: 0.04,
-                                ),
+                                fill: AppColors.primary.withValues(alpha: 0.04),
                               ),
                               submittedPinTheme: _pinTheme(
                                 border: AppColors.primary,
-                                fill: AppColors.primary.withValues(
-                                  alpha: 0.06,
-                                ),
+                                fill: AppColors.primary.withValues(alpha: 0.06),
                               ),
                               separatorBuilder: (_) =>
                                   const SizedBox(width: 12),

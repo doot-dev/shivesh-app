@@ -4,6 +4,7 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 import '../providers/storage_providers.dart';
 import 'auth_events.dart';
+import 'offline_cache.dart';
 
 class DioClient {
   Dio create({
@@ -23,6 +24,9 @@ class DioClient {
     if (storage != null) {
       dio.interceptors.add(_AuthInterceptor(storage, authEvents));
     }
+
+    // After auth (so the token is on the request), before logging.
+    dio.interceptors.add(OfflineCacheInterceptor());
 
     dio.interceptors.add(
       PrettyDioLogger(requestBody: true, responseBody: true, compact: true),
@@ -76,7 +80,12 @@ class _AuthInterceptor extends Interceptor {
 
     final isAuthCall = path.contains(_authPaths);
     final isNonCritical = _nonCriticalPaths.any(path.contains);
-    final isRejectedToken = status == 401 || status == 403;
+    // A 403 that only says "your role doesn't allow this" (docs/06) is not a
+    // dead session — the screen shows the message and the user stays signed in.
+    final data = err.response?.data;
+    final isRoleForbidden = data is Map && data['code'] == 'ROLE_FORBIDDEN';
+    final isRejectedToken =
+        (status == 401 || status == 403) && !isRoleForbidden;
 
     if (isRejectedToken && !isAuthCall && !isNonCritical) {
       // Clear the dead token immediately so no in-flight retry re-sends it and

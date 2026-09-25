@@ -5,8 +5,18 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
 const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 /// Compact label for the active date window, e.g. "24 Aug", "1–5 Aug",

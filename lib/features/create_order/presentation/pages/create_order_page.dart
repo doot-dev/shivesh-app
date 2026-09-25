@@ -241,7 +241,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         ?.map((p) => p.productName)
         .toSet()
         .toList();
-    _unit = projectProductsAsync?.value
+    _unit =
+        projectProductsAsync?.value
             ?.where((p) => p.productName == _selectedProduct)
             .map((p) => p.unit)
             .firstOrNull ??
@@ -321,8 +322,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
                 hint: _selectedProduct != null
                     ? 'Select grade'
                     : _selectedProjectId == null
-                        ? 'Select a project first'
-                        : 'Select a product first',
+                    ? 'Select a project first'
+                    : 'Select a product first',
                 onTap: _selectedProduct == null || gradeOptions == null
                     ? null
                     : () => _selectGrade(gradeOptions),
@@ -338,9 +339,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             TextFormField(
               controller: _quantityController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                hintText: 'Enter quantity in $_unit',
-              ),
+              decoration: InputDecoration(hintText: 'Enter quantity in $_unit'),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
                   return 'Please enter quantity';
@@ -688,30 +687,30 @@ class _QuickSelectRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Wrap, not Row: four time chips don't fit a ~300dp Fold cover screen.
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: options.map((label) {
         final selected = isSelected(label);
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: GestureDetector(
-            onTap: () => onSelected(label),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: selected ? AppColors.primary : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: selected ? AppColors.primary : AppColors.border,
-                  width: 1.2,
-                ),
+        return GestureDetector(
+          onTap: () => onSelected(label),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primary : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: 1.2,
               ),
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: selected ? Colors.white : AppColors.textMuted,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
+            ),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: selected ? Colors.white : AppColors.textMuted,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ),

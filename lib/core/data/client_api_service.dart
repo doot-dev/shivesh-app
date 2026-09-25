@@ -6,6 +6,7 @@ import '../../features/home/data/models/home_models.dart';
 import '../../features/notifications/data/models/notification_model.dart';
 import '../../features/orders/data/models/order_models.dart';
 import '../../features/profile/data/models/user_profile.dart';
+import '../providers/access_provider.dart';
 
 class ClientApiService {
   const ClientApiService(this._dio);
@@ -173,11 +174,54 @@ class ClientApiService {
   }
 
   /// Reject a truck at site (only while REACHED and before its challan).
-  Future<void> rejectTruck(String orderId, String tmId, String reason, {String? note}) async {
+  Future<void> rejectTruck(
+    String orderId,
+    String tmId,
+    String reason, {
+    String? note,
+  }) async {
     await _dio.post(
       '$_base/orders/$orderId/tm/$tmId/reject',
-      data: {'reason': reason, if (note != null && note.isNotEmpty) 'note': note},
+      data: {
+        'reason': reason,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
     );
+  }
+
+  // ─── Who am I, and my company's team (docs/06) ─────────────────────────
+
+  Future<ClientAccess> getMe() async {
+    final res = await _dio.get('$_base/me');
+    return ClientAccess.fromJson(res.data['data'] as Map<String, dynamic>);
+  }
+
+  /// Contacts of my company: {id, name, phone, designation, role{id,name,isOwner},
+  /// allProjects, projects[{projectId, projectName}], isActive, lastLoginAt}.
+  Future<List<Map<String, dynamic>>> getTeam() async {
+    final res = await _dio.get('$_base/team');
+    return (res.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  /// Roles I may hand out (never Owner): {id, name, description, permissions}.
+  Future<List<Map<String, dynamic>>> getTeamRoles() async {
+    final res = await _dio.get('$_base/roles');
+    return (res.data['data'] as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addTeamMember(Map<String, dynamic> member) async {
+    await _dio.post('$_base/team', data: member);
+  }
+
+  Future<void> updateTeamMember(
+    String contactId,
+    Map<String, dynamic> changes,
+  ) async {
+    await _dio.put('$_base/team/$contactId', data: changes);
+  }
+
+  Future<void> removeTeamMember(String contactId) async {
+    await _dio.delete('$_base/team/$contactId');
   }
 
   Future<UserProfile> getProfile() async {

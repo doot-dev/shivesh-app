@@ -13,19 +13,25 @@ final homeActiveOrdersProvider = FutureProvider((ref) {
   return ref.watch(activeOrdersProvider.future);
 });
 
-final projectDetailProvider =
-    FutureProvider.family<ProjectDetail, String>((ref, projectId) {
+final projectDetailProvider = FutureProvider.family<ProjectDetail, String>((
+  ref,
+  projectId,
+) {
   return ref.read(clientApiProvider).getProjectDetail(projectId);
 });
 
-final projectActiveOrdersProvider =
-    FutureProvider.family<List<Order>, String>((ref, projectId) {
+final projectActiveOrdersProvider = FutureProvider.family<List<Order>, String>((
+  ref,
+  projectId,
+) {
   return ref
       .read(clientApiProvider)
       .getProjectOrders(projectId, type: 'active');
 });
 
-final projectPastOrdersProvider =
-    FutureProvider.family<List<Order>, String>((ref, projectId) {
+final projectPastOrdersProvider = FutureProvider.family<List<Order>, String>((
+  ref,
+  projectId,
+) {
   return ref.read(clientApiProvider).getProjectOrders(projectId, type: 'past');
 });

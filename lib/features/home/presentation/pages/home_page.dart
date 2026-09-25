@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/access_provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -20,6 +21,9 @@ class HomePage extends ConsumerWidget {
     final activeOrdersAsync = ref.watch(activeOrdersProvider);
     final projectsAsync = ref.watch(projectsProvider);
     final auth = ref.watch(authProvider);
+    // docs/06: greet the person, and offer ordering only if their role may order.
+    final me = ref.watch(accessProvider).value;
+    final canOrder = ref.can('orders.create');
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -37,7 +41,8 @@ class HomePage extends ConsumerWidget {
           ),
           slivers: [
             _HomeHeader(
-              name: auth.name,
+              name: me?.name ?? auth.name,
+              canOrder: canOrder,
               // Riverpod 3.x: `.value` is itself nullable — `valueOrNull` was
               // removed, so this is the correct "data if loaded" accessor.
               activeCount: activeOrdersAsync.value?.length,
@@ -73,8 +78,10 @@ class HomePage extends ConsumerWidget {
                         icon: Icons.local_shipping_outlined,
                         title: 'No active orders',
                         message: 'Place an order and track it live here.',
-                        actionLabel: 'New order',
-                        onAction: () => context.push('/create-order'),
+                        actionLabel: canOrder ? 'New order' : null,
+                        onAction: canOrder
+                            ? () => context.push('/create-order')
+                            : null,
                       ),
                     )
                   : SliverList.builder(
@@ -147,9 +154,15 @@ class HomePage extends ConsumerWidget {
 /// Collapses to a compact bar as the user scrolls, which keeps the brand
 /// present without eating the screen.
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.name, this.activeCount, this.projectCount});
+  const _HomeHeader({
+    required this.name,
+    required this.canOrder,
+    this.activeCount,
+    this.projectCount,
+  });
 
   final String? name;
+  final bool canOrder;
   final int? activeCount;
   final int? projectCount;
 
@@ -247,15 +260,17 @@ class _HomeHeader extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
                     // Up front so booking is one tap from home (the old
                     // floating button sat under the bottom bar).
-                    FadeSlideIn(
-                      index: 2,
-                      child: _NewOrderButton(
-                        onPressed: () => context.push('/create-order'),
+                    if (canOrder) ...[
+                      const SizedBox(height: 16),
+                      FadeSlideIn(
+                        index: 2,
+                        child: _NewOrderButton(
+                          onPressed: () => context.push('/create-order'),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -375,7 +390,11 @@ class _NewOrderButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 24),
+            const Icon(
+              Icons.add_circle_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
             const SizedBox(width: 8),
             Text(
               'Create order',

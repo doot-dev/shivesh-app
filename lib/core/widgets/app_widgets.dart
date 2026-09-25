@@ -60,12 +60,13 @@ class StatusPill extends StatelessWidget {
   });
 
   /// Convenience constructors so status colours are chosen in one place.
-  factory StatusPill.success(String label, {bool showDot = false}) => StatusPill(
-    label: label,
-    bg: AppColors.successBg,
-    fg: AppColors.successFg,
-    showDot: showDot,
-  );
+  factory StatusPill.success(String label, {bool showDot = false}) =>
+      StatusPill(
+        label: label,
+        bg: AppColors.successBg,
+        fg: AppColors.successFg,
+        showDot: showDot,
+      );
 
   factory StatusPill.warning(String label) => StatusPill(
     label: label,
@@ -165,37 +166,46 @@ class InfoCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 12, color: AppColors.textMuted),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
-                fontSize: 11,
-                height: 1.2,
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // A narrow cell keeps the word and drops the icon.
+              if (icon != null && constraints.maxWidth >= 72) ...[
+                Icon(icon, size: 12, color: AppColors.textMuted),
+                const SizedBox(width: 4),
+              ],
+              // Flexible + ellipsis: three cells share a ~300dp Fold cover
+              // screen, so a label must shrink rather than overflow.
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    height: 1.2,
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 3),
-        Text(
-          value.isEmpty ? '—' : value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-            height: 1.2,
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 3),
+          Text(
+            value.isEmpty ? '—' : value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -284,11 +294,7 @@ class EmptyState extends StatelessWidget {
 
 /// Error state with a retry — used wherever an AsyncValue can fail.
 class ErrorState extends StatelessWidget {
-  const ErrorState({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const ErrorState({super.key, required this.message, this.onRetry});
 
   final String message;
   final VoidCallback? onRetry;
@@ -326,19 +332,29 @@ class SkeletonCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppStyles.radiusLg),
           border: Border.all(color: AppColors.border),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // A ListView, not a Column: a fixed-height skeleton on a small or
+        // large-font screen clips its last lines instead of overflowing.
+        child: ListView(
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          physics: const NeverScrollableScrollPhysics(),
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
-                SkeletonBox(width: 140, height: 16),
-                SkeletonBox(width: 64, height: 22, radius: 999),
+                Flexible(child: SkeletonBox(width: 140, height: 16)),
+                SizedBox(width: 8),
+                Flexible(
+                  child: SkeletonBox(width: 64, height: 22, radius: 999),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             for (var i = 0; i < lines; i++) ...[
-              SkeletonBox(width: i.isEven ? 220 : 170, height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SkeletonBox(width: i.isEven ? 220 : 170, height: 12),
+              ),
               const SizedBox(height: 10),
             ],
           ],
@@ -381,10 +397,7 @@ class SectionHeader extends StatelessWidget {
             if (count != null && count! > 0) ...[
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(999),

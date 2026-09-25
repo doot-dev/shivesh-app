@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/access_provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -69,14 +70,16 @@ class _ProjectDetailPageState extends ConsumerState<ProjectDetailPage>
           tabController: _tabController,
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/create-order'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, size: 28),
-      ),
+      floatingActionButton: !ref.can('orders.create')
+          ? null
+          : FloatingActionButton(
+              onPressed: () => context.push('/create-order'),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, size: 28),
+            ),
     );
   }
 }
@@ -392,7 +395,7 @@ class _OrderCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                _StatusBadge(status: order.status),
+                _StatusBadge(status: order.status, label: order.statusLabel),
               ],
             ),
             const SizedBox(height: 10),
@@ -433,13 +436,14 @@ class _OrderCard extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.status, required this.label});
 
   final OrderStatus status;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final (label, bg, fg) = switch (status) {
+    final (_, bg, fg) = switch (status) {
       OrderStatus.active => (
         'Active',
         const Color(0xFFE8F5E9),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/access_provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -172,31 +173,40 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
           ),
         ],
       ),
-      floatingActionButton: PressableScale(
-        onTap: () => context.push('/create-order'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          decoration: BoxDecoration(
-            gradient: AppColors.brandGradient,
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: AppStyles.raisedShadow,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.add_rounded, color: Colors.white, size: 22),
-              const SizedBox(width: 6),
-              Text(
-                'New order',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+      floatingActionButton: !ref.can('orders.create')
+          ? null
+          : PressableScale(
+              onTap: () => context.push('/create-order'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 15,
+                ),
+                decoration: BoxDecoration(
+                  gradient: AppColors.brandGradient,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: AppStyles.raisedShadow,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.add_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'New order',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }
@@ -393,8 +403,12 @@ class _AsyncOrderList extends ConsumerWidget {
             message: isPast
                 ? 'Completed orders will show up here.'
                 : 'Place an order and follow it live.',
-            actionLabel: isPast ? null : 'New order',
-            onAction: isPast ? null : () => context.push('/create-order'),
+            actionLabel: isPast || !ref.can('orders.create')
+                ? null
+                : 'New order',
+            onAction: isPast || !ref.can('orders.create')
+                ? null
+                : () => context.push('/create-order'),
           );
         }
 

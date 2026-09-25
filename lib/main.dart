@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_router.dart';
 import 'core/config/app_theme.dart';
+import 'core/widgets/app_frame.dart';
 import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
 
@@ -12,11 +13,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  runApp(
-    const ProviderScope(
-      child: ClientApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: ClientApp()));
 }
 
 class ClientApp extends ConsumerWidget {
@@ -31,6 +28,8 @@ class ClientApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: AppTheme.light,
+      // Tablet column, font cap and the offline strip for every screen.
+      builder: (context, child) => AppFrame(child: child!),
     );
   }
 }

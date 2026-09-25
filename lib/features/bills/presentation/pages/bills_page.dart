@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/access_provider.dart';
+
 import '../../../../core/providers/client_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/links.dart';
@@ -33,52 +35,56 @@ class BillsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bills = ref.watch(billsProvider);
+    // The statement is credit/account data — a separate permission from bills.
+    final showStatement = ref.can('account.view');
+    final billList = RefreshIndicator(
+      onRefresh: () async => ref.invalidate(billsProvider),
+      child: bills.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ListView(
+          children: const [
+            Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('Could not load bills. Pull to retry.'),
+            ),
+          ],
+        ),
+        data: (list) => list.isEmpty
+            ? ListView(
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('No bills yet.'),
+                  ),
+                ],
+              )
+            : ListView.separated(
+                // Bottom padding clears the floating nav bar.
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+                itemCount: list.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, i) => _BillTile(bill: list[i]),
+              ),
+      ),
+    );
     return DefaultTabController(
-      length: 2,
+      key: ValueKey(showStatement),
+      length: showStatement ? 2 : 1,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Bills & invoices'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Bills'),
-              Tab(text: 'Statement'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            RefreshIndicator(
-              onRefresh: () async => ref.invalidate(billsProvider),
-              child: bills.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => ListView(
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('Could not load bills. Pull to retry.'),
-                    ),
+          bottom: showStatement
+              ? const TabBar(
+                  tabs: [
+                    Tab(text: 'Bills'),
+                    Tab(text: 'Statement'),
                   ],
-                ),
-                data: (list) => list.isEmpty
-                    ? ListView(
-                        children: const [
-                          Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Text('No bills yet.'),
-                          ),
-                        ],
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: list.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, i) => _BillTile(bill: list[i]),
-                      ),
-              ),
-            ),
-            const _Statement(),
-          ],
+                )
+              : null,
         ),
+        body: showStatement
+            ? TabBarView(children: [billList, const _Statement()])
+            : billList,
       ),
     );
   }
@@ -103,7 +109,7 @@ class _Statement extends ConsumerWidget {
           ],
         ),
         data: (list) => ListView.separated(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
           itemCount: list.length,
           separatorBuilder: (_, __) => const Divider(height: 1),
           itemBuilder: (context, i) {
@@ -141,9 +147,15 @@ class _BillTile extends ConsumerWidget {
     final (label, color) = paid
         ? ('Paid', Colors.green)
         : overdue
-        ? ('Overdue · ${bill.daysOverdue} days · ${inr(bill.balance)} pending', Colors.red)
+        ? (
+            'Overdue · ${bill.daysOverdue} days · ${inr(bill.balance)} pending',
+            Colors.red,
+          )
         : partly
-        ? ('Paid ${inr(bill.paid)} · ${inr(bill.balance)} pending', AppColors.secondary)
+        ? (
+            'Paid ${inr(bill.paid)} · ${inr(bill.balance)} pending',
+            AppColors.secondary,
+          )
         : ('Due ${_date(bill.dueDate)}', AppColors.secondary);
     return Card(
       child: Padding(

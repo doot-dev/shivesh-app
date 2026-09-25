@@ -228,10 +228,7 @@ class _StatusChips extends StatelessWidget {
             child: AnimatedContainer(
               duration: AppStyles.fast,
               curve: AppStyles.curve,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: active
                     ? Colors.white
@@ -338,10 +335,16 @@ class _CubeTestCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      entry.orderId.isEmpty ? 'Cube test' : entry.orderId,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                    // Shrink, never break the order code across lines.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        entry.orderId.isEmpty ? 'Cube test' : entry.orderId,
+                        maxLines: 1,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     if (entry.projectLabel.isNotEmpty) ...[
@@ -430,7 +433,9 @@ class _CubeTestCard extends StatelessWidget {
                         ? 'Report sheet attached'
                         : 'Report sheet not uploaded yet',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: t.hasFile ? AppColors.primary : AppColors.textMuted,
+                      color: t.hasFile
+                          ? AppColors.primary
+                          : AppColors.textMuted,
                       fontWeight: t.hasFile ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),

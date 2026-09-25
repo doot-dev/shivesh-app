@@ -11,6 +11,7 @@ import '../providers/storage_providers.dart';
 Future<bool> openServerLink(WidgetRef ref, String path) async {
   final token = await ref.read(secureStorageProvider).read(key: tokenKey);
   final sep = path.contains('?') ? '&' : '?';
-  final url = '$apiBaseUrl$path${token != null ? '${sep}token=${Uri.encodeQueryComponent(token)}' : ''}';
+  final url =
+      '$apiBaseUrl$path${token != null ? '${sep}token=${Uri.encodeQueryComponent(token)}' : ''}';
   return launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 }

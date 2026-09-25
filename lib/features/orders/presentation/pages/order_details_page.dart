@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/access_provider.dart';
 
 import '../../../../core/realtime/realtime_providers.dart';
 import '../../../../core/realtime/socket_service.dart';
@@ -204,15 +205,28 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                       ),
 
                       // D15: cancel directly until the order is dispatched.
-                      if (order.canClientCancel)
+                      if (order.canClientCancel && ref.can('orders.cancel'))
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                             child: OutlinedButton.icon(
-                              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                              label: const Text('Cancel order', style: TextStyle(color: Colors.red)),
-                              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
-                              onPressed: () => _cancelOrder(context, ref, order.id, widget.orderId),
+                              icon: const Icon(
+                                Icons.cancel_outlined,
+                                color: Colors.red,
+                              ),
+                              label: const Text(
+                                'Cancel order',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.red),
+                              ),
+                              onPressed: () => _cancelOrder(
+                                context,
+                                ref,
+                                order.id,
+                                widget.orderId,
+                              ),
                             ),
                           ),
                         ),
@@ -240,8 +254,11 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                               itemCount: order.tmDetails.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(width: 12),
-                              itemBuilder: (context, i) =>
-                                  _TmCard(tm: order.tmDetails[i], orderId: order.id, routeOrderId: widget.orderId),
+                              itemBuilder: (context, i) => _TmCard(
+                                tm: order.tmDetails[i],
+                                orderId: order.id,
+                                routeOrderId: widget.orderId,
+                              ),
                             ),
                           ),
                         ),
@@ -302,12 +319,14 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
             ),
           ),
 
-          // Docked, so replying never costs a tab switch.
-          _MessageInput(
-            controller: _messageController,
-            sending: _sendingComment,
-            onSend: _sendComment,
-          ),
+          // Docked, so replying never costs a tab switch. Hidden for roles
+          // that may only read (docs/06).
+          if (ref.can('orders.comment'))
+            _MessageInput(
+              controller: _messageController,
+              sending: _sendingComment,
+              onSend: _sendComment,
+            ),
         ],
       ),
     );
@@ -568,7 +587,7 @@ class _QuickFacts extends StatelessWidget {
           const _FactDivider(),
           Expanded(
             child: InfoCell(
-              label: 'Quantity',
+              label: 'Qty', // fits a ~300dp Fold cover screen
               value: order.quantity,
               icon: Icons.scale_outlined,
             ),
@@ -629,6 +648,12 @@ class _SecondaryDetails extends StatelessWidget {
         label: 'Technician',
         value: order.fieldTechnician,
       ),
+      if (order.placedBy != null)
+        _DetailRow(
+          icon: Icons.person_outline_rounded,
+          label: 'Placed by',
+          value: order.placedBy!,
+        ),
     ];
 
     return AppCard(
@@ -690,7 +715,11 @@ class _DetailRow extends StatelessWidget {
 }
 
 class _TmCard extends ConsumerWidget {
-  const _TmCard({required this.tm, required this.orderId, required this.routeOrderId});
+  const _TmCard({
+    required this.tm,
+    required this.orderId,
+    required this.routeOrderId,
+  });
 
   final TmDetail tm;
   final String orderId;
@@ -711,14 +740,20 @@ class _TmCard extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.local_shipping_rounded, size: 18, color: AppColors.primary),
+                const Icon(
+                  Icons.local_shipping_rounded,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     tm.tmNumber.isEmpty ? 'TM' : tm.tmNumber,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 _TruckChip(tm: tm),
@@ -748,24 +783,41 @@ class _TmCard extends ConsumerWidget {
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           side: const BorderSide(color: AppColors.primary),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppStyles.radiusSm)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppStyles.radiusSm,
+                            ),
+                          ),
                         ),
                         child: const Text('View challan'),
                       ),
                     ),
                   ),
-                if (tm.canClientReject)
+                if (tm.canClientReject && ref.can('trucks.reject'))
                   Expanded(
                     child: SizedBox(
                       height: 32,
                       child: OutlinedButton(
-                        onPressed: () => _rejectTruck(context, ref, orderId, routeOrderId, tm),
+                        onPressed: () => _rejectTruck(
+                          context,
+                          ref,
+                          orderId,
+                          routeOrderId,
+                          tm,
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           side: const BorderSide(color: Colors.red),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppStyles.radiusSm)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppStyles.radiusSm,
+                            ),
+                          ),
                         ),
-                        child: const Text('Reject truck', style: TextStyle(color: Colors.red)),
+                        child: const Text(
+                          'Reject truck',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ),
                     ),
                   ),
@@ -778,7 +830,10 @@ class _TmCard extends ConsumerWidget {
   }
 
   String _batchWindow(TmDetail tm) {
-    final parts = [tm.batchStartTime, tm.batchEndTime].where((s) => s.isNotEmpty).toList();
+    final parts = [
+      tm.batchStartTime,
+      tm.batchEndTime,
+    ].where((s) => s.isNotEmpty).toList();
     return parts.join(' → ');
   }
 }
@@ -799,25 +854,53 @@ class _TruckChip extends StatelessWidget {
           };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-      child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
 
-String _apiError(Object e, String fallback) =>
-    e is DioException ? (e.response?.data is Map ? (e.response!.data['message'] as String? ?? fallback) : fallback) : fallback;
+String _apiError(Object e, String fallback) => e is DioException
+    ? (e.response?.data is Map
+          ? (e.response!.data['message'] as String? ?? fallback)
+          : fallback)
+    : fallback;
 
-Future<void> _cancelOrder(BuildContext context, WidgetRef ref, String orderId, String routeOrderId) async {
+Future<void> _cancelOrder(
+  BuildContext context,
+  WidgetRef ref,
+  String orderId,
+  String routeOrderId,
+) async {
   final ctrl = TextEditingController();
   final reason = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Cancel this order?'),
-      content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Reason'), autofocus: true),
+      content: TextField(
+        controller: ctrl,
+        decoration: const InputDecoration(labelText: 'Reason'),
+        autofocus: true,
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Keep order')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Cancel order')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Keep order'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+          child: const Text('Cancel order'),
+        ),
       ],
     ),
   );
@@ -825,15 +908,35 @@ Future<void> _cancelOrder(BuildContext context, WidgetRef ref, String orderId, S
   try {
     await ref.read(clientApiProvider).cancelOrder(orderId, reason);
     ref.read(liveOrderProvider(routeOrderId).notifier).refresh();
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order cancelled')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Order cancelled')));
+    }
   } catch (e) {
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_apiError(e, 'Could not cancel'))));
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_apiError(e, 'Could not cancel'))));
+    }
   }
 }
 
-const _rejectReasons = ['Quality / slump not OK', 'Damaged / segregated', 'Wrong grade', 'Too late', 'Other'];
+const _rejectReasons = [
+  'Quality / slump not OK',
+  'Damaged / segregated',
+  'Wrong grade',
+  'Too late',
+  'Other',
+];
 
-Future<void> _rejectTruck(BuildContext context, WidgetRef ref, String orderId, String routeOrderId, TmDetail tm) async {
+Future<void> _rejectTruck(
+  BuildContext context,
+  WidgetRef ref,
+  String orderId,
+  String routeOrderId,
+  TmDetail tm,
+) async {
   var reason = _rejectReasons.first;
   final note = TextEditingController();
   final ok = await showDialog<bool>(
@@ -845,31 +948,54 @@ Future<void> _rejectTruck(BuildContext context, WidgetRef ref, String orderId, S
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('The truck will not be billed. The office will arrange a replacement.'),
+            const Text(
+              'The truck will not be billed. The office will arrange a replacement.',
+            ),
             const SizedBox(height: 12),
             DropdownButton<String>(
               value: reason,
               isExpanded: true,
-              items: _rejectReasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+              items: _rejectReasons
+                  .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                  .toList(),
               onChanged: (v) => setState(() => reason = v ?? reason),
             ),
-            TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (optional)')),
+            TextField(
+              controller: note,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Back')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject truck')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Back'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reject truck'),
+          ),
         ],
       ),
     ),
   );
   if (ok != true || !context.mounted) return;
   try {
-    await ref.read(clientApiProvider).rejectTruck(orderId, tm.id, reason, note: note.text.trim());
+    await ref
+        .read(clientApiProvider)
+        .rejectTruck(orderId, tm.id, reason, note: note.text.trim());
     ref.read(liveOrderProvider(routeOrderId).notifier).refresh();
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tm.tmNumber} rejected')));
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${tm.tmNumber} rejected')));
+    }
   } catch (e) {
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_apiError(e, 'Could not reject'))));
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_apiError(e, 'Could not reject'))));
+    }
   }
 }
 

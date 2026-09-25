@@ -145,26 +145,28 @@ final orderFilterProvider = NotifierProvider<OrderFilterNotifier, OrderFilter>(
 ///
 /// Note it calls [_refreshOnOrderEvents] too — without that, live status
 /// pushes would stop updating the list the moment a search was active.
-final searchedOrdersProvider =
-    FutureProvider.family<List<Order>, OrderFilter>((ref, filter) async {
-      if (!filter.isActive) {
-        return ref.watch(
-          filter.type == 'past'
-              ? pastOrdersProvider.future
-              : activeOrdersProvider.future,
-        );
-      }
+final searchedOrdersProvider = FutureProvider.family<List<Order>, OrderFilter>((
+  ref,
+  filter,
+) async {
+  if (!filter.isActive) {
+    return ref.watch(
+      filter.type == 'past'
+          ? pastOrdersProvider.future
+          : activeOrdersProvider.future,
+    );
+  }
 
-      _refreshOnOrderEvents(ref);
-      return ref
-          .read(clientApiProvider)
-          .getOrders(
-            type: filter.type,
-            query: filter.query,
-            dateFrom: filter.fromIso,
-            dateTo: filter.toIso,
-          );
-    });
+  _refreshOnOrderEvents(ref);
+  return ref
+      .read(clientApiProvider)
+      .getOrders(
+        type: filter.type,
+        query: filter.query,
+        dateFrom: filter.fromIso,
+        dateTo: filter.toIso,
+      );
+});
 
 /// One-shot fetch. Prefer `liveOrderProvider` on screens that must stay current.
 final orderByIdProvider = FutureProvider.family<Order?, String>((

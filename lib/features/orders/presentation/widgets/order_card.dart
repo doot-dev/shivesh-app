@@ -90,7 +90,7 @@ class OrderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              OrderStatusPill(status: order.status),
+              OrderStatusPill(status: order.status, label: order.statusLabel),
             ],
           ),
           const SizedBox(height: 14),
@@ -141,27 +141,37 @@ class OrderCard extends StatelessWidget {
                 ),
                 // Schedule reads as one fact, so date and time sit on the
                 // same line rather than in a 3-column grid with a hole.
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.event_outlined,
-                      size: 14,
-                      color: AppColors.textMuted,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _schedule,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                // Wrap, not Row: on a narrow screen (Fold cover) the tag
+                // drops to its own line instead of cutting the time off.
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.event_outlined,
+                            size: 14,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _schedule,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    _TechnicianTag(order: order),
-                  ],
+                      _TechnicianTag(order: order),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -238,27 +248,29 @@ class _TechnicianTag extends StatelessWidget {
 /// Maps an [OrderStatus] onto the shared pill. Single place that decides what
 /// colour an order status is anywhere in the app.
 class OrderStatusPill extends StatelessWidget {
-  const OrderStatusPill({super.key, required this.status});
+  const OrderStatusPill({super.key, required this.status, required this.label});
 
+  /// Colour group; [label] is the real step ("Dispatched", "Delayed", …).
   final OrderStatus status;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     switch (status) {
       case OrderStatus.active:
-        return StatusPill.success('Active', showDot: true);
+        return StatusPill.success(label, showDot: true);
       case OrderStatus.completed:
-        return const StatusPill(
-          label: 'Completed',
+        return StatusPill(
+          label: label,
           bg: AppColors.infoBg,
           fg: AppColors.infoFg,
           icon: Icons.check_circle_outline_rounded,
         );
       case OrderStatus.pending:
-        return StatusPill.warning('Pending');
+        return StatusPill.warning(label);
       case OrderStatus.cancelled:
-        return const StatusPill(
-          label: 'Cancelled',
+        return StatusPill(
+          label: label,
           bg: Color(0xFFFDECEA),
           fg: Color(0xFFC62828),
           icon: Icons.cancel_outlined,

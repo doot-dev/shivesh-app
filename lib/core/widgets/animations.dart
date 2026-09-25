@@ -134,8 +134,7 @@ class Shimmer extends StatefulWidget {
   State<Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<Shimmer>
-    with SingleTickerProviderStateMixin {
+class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
@@ -166,9 +165,7 @@ class _ShimmerState extends State<Shimmer>
                 AppColors.shimmerBase,
               ],
               stops: const [0.35, 0.5, 0.65],
-            ).createShader(
-              Rect.fromLTWH(dx, 0, bounds.width, bounds.height),
-            );
+            ).createShader(Rect.fromLTWH(dx, 0, bounds.width, bounds.height));
           },
           child: child,
         );
@@ -180,12 +177,7 @@ class _ShimmerState extends State<Shimmer>
 
 /// A single grey block inside a skeleton.
 class SkeletonBox extends StatelessWidget {
-  const SkeletonBox({
-    super.key,
-    this.width,
-    this.height = 14,
-    this.radius = 8,
-  });
+  const SkeletonBox({super.key, this.width, this.height = 14, this.radius = 8});
 
   final double? width;
   final double height;

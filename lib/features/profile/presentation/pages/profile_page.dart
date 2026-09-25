@@ -5,6 +5,7 @@ import '../../../auth/providers/auth_providers.dart';
 import 'package:go_router/go_router.dart';
 import '../../../bills/presentation/pages/bills_page.dart' show inr;
 import '../../../bills/providers/bill_providers.dart';
+import '../../../../core/providers/access_provider.dart';
 import '../../data/models/user_profile.dart';
 import '../../providers/profile_providers.dart';
 
@@ -52,6 +53,11 @@ class _ProfileBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final access = ref.watch(accessProvider).value;
+    // docs/06: the page is about the person signed in; /profile is the company.
+    final displayName = (access?.name.isNotEmpty ?? false)
+        ? access!.name
+        : profile.name;
 
     return Column(
       children: [
@@ -95,8 +101,8 @@ class _ProfileBody extends ConsumerWidget {
                     : null,
                 child: profile.avatarUrl == null
                     ? Text(
-                        profile.name.isNotEmpty
-                            ? profile.name[0].toUpperCase()
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
                             : '?',
                         style: theme.textTheme.headlineMedium?.copyWith(
                           color: AppColors.primary,
@@ -107,19 +113,36 @@ class _ProfileBody extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                profile.name,
+                displayName,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                profile.email,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
+              if (access == null)
+                Text(
+                  profile.email,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
                 ),
-              ),
+              // docs/06: their role at the company.
+              if (access != null) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    '${access.roleName} · ${profile.companyName}',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -133,7 +156,25 @@ class _ProfileBody extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ...[
+                  if (ref.can('team.manage')) ...[
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.groups_rounded,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text('Team'),
+                        subtitle: const Text(
+                          'Add site engineers and accounts people, each with their own login',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push('/team'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (ref.can('account.view')) ...[
                     Text(
                       'Credit',
                       style: theme.textTheme.titleSmall?.copyWith(
@@ -142,15 +183,6 @@ class _ProfileBody extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     const _LiveCreditCard(),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.receipt_long_outlined),
-                        label: const Text('Bills & invoices'),
-                        onPressed: () => context.push('/bills'),
-                      ),
-                    ),
                     const SizedBox(height: 24),
                   ],
                   Text(
@@ -331,11 +363,27 @@ class _LiveCreditCard extends ConsumerWidget {
         data: (c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Payment due', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+            Text(
+              'Payment due',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(inr(c.outstanding), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              inr(c.outstanding),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             if (c.overdueAmount > 0)
-              Text('${inr(c.overdueAmount)} overdue', style: theme.textTheme.bodySmall?.copyWith(color: Colors.red, fontWeight: FontWeight.w600)),
+              Text(
+                '${inr(c.overdueAmount)} overdue',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -351,14 +399,29 @@ class _LiveCreditCard extends ConsumerWidget {
               c.limit > 0
                   ? 'Used ${inr(c.used)} of ${inr(c.limit + c.extraUnused + c.extraInUse)} · available ${inr(c.available)}'
                   : 'Credit limit not set',
-              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
             if (c.extraUnused > 0 || c.extraInUse > 0)
-              Text('Includes extra credit ${inr(c.extraUnused)} unused${c.extraInUse > 0 ? ' · ${inr(c.extraInUse)} in use' : ''}', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+              Text(
+                'Includes extra credit ${inr(c.extraUnused)} unused${c.extraInUse > 0 ? ' · ${inr(c.extraInUse)} in use' : ''}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
             if (c.advance > 0)
-              Text('Advance with Shivesh: ${inr(c.advance)}', style: theme.textTheme.bodySmall?.copyWith(color: Colors.green)),
+              Text(
+                'Advance with Shivesh: ${inr(c.advance)}',
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.green),
+              ),
             if (c.daysLeft != null)
-              Text('Next payment due in ${c.daysLeft} days', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+              Text(
+                'Next payment due in ${c.daysLeft} days',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
           ],
         ),
       ),

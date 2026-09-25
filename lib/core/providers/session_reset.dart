@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../network/offline_cache.dart';
+import 'access_provider.dart';
+
 import '../../features/create_order/providers/create_order_providers.dart';
 import '../../features/cube_test/providers/cube_test_providers.dart';
 import '../../features/home/providers/home_providers.dart';
@@ -55,4 +58,9 @@ void resetSessionData(Ref ref) {
   // Profile + notifications
   ref.invalidate(userProfileProvider);
   ref.invalidate(notificationsProvider);
+
+  // Who I am / what my role allows (docs/06), and the offline copy of it all.
+  ref.invalidate(accessProvider);
+  OfflineCache.clear();
+  offlineNotifier.value = false;
 }

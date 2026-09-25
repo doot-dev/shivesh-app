@@ -12,24 +12,35 @@ String _fmtTimeAgo(String? iso) {
   }
 }
 
-/// Map a backend order status string (`NEW`, `IN_PROGRESS`, `DELIVERED`, …)
-/// to the tri-state the UI renders. Shared with the realtime layer, which
-/// receives raw status strings over the WebSocket.
+/// Map the server's single order status (2026-09-26: NEW → CONFIRMED →
+/// DISPATCHED → REACHED → COMPLETED, plus DELAYED and CANCELLED) to the group
+/// the UI colours by. Shared with the realtime layer. IN_PROGRESS / DELIVERED
+/// are the old values, still in offline copies saved before the change.
 OrderStatus mapOrderStatus(String? s) {
   switch (s) {
     case 'CANCELLED':
       return OrderStatus.cancelled;
-    case 'DELIVERED':
     case 'COMPLETED':
       return OrderStatus.completed;
-    case 'NEW':
     case 'CONFIRMED':
+    case 'DISPATCHED':
+    case 'REACHED':
     case 'IN_PROGRESS':
+    case 'DELIVERED':
       return OrderStatus.active;
-    default:
+    default: // NEW (waiting for the office), DELAYED
       return OrderStatus.pending;
   }
 }
+
+/// The step name people read: "Dispatched", "Delayed", …
+String orderStatusLabel(String raw) => switch (raw) {
+  'NEW' => 'New',
+  'IN_PROGRESS' => 'Dispatched',
+  'DELIVERED' => 'Reached',
+  '' => 'Pending',
+  _ => raw[0] + raw.substring(1).toLowerCase(),
+};
 
 enum OrderStatus { active, completed, pending, cancelled }
 
@@ -149,18 +160,18 @@ class Order {
     this.tmDetails = const [],
     this.comments = const [],
     this.rawStatus = '',
-    this.deliveryStatus = '',
+    this.placedBy,
   });
 
-  /// Server status (NEW, CONFIRMED, …) and delivery step — needed for the
-  /// cancel rule (D15) and the "Reached" step (W32).
+  /// docs/06: who placed it from the app, e.g. "Rakesh Pawar (Site Engineer)".
+  final String? placedBy;
+
+  /// The server's single order status (NEW, CONFIRMED, DISPATCHED, …).
   final String rawStatus;
-  final String deliveryStatus;
 
   /// D15: the client can cancel until the order is dispatched.
   bool get canClientCancel =>
-      (rawStatus == 'NEW' || rawStatus == 'CONFIRMED') &&
-      deliveryStatus == 'ASSIGNED' &&
+      const ['NEW', 'CONFIRMED', 'DELAYED'].contains(rawStatus) &&
       tmDetails.every((tm) => tm.status == 'ASSIGNED');
 
   final String id;
@@ -177,7 +188,11 @@ class Order {
   final List<TmDetail> tmDetails;
   final List<Comment> comments;
 
-  Order copyWith({OrderStatus? status, List<Comment>? comments}) => Order(
+  Order copyWith({
+    OrderStatus? status,
+    String? rawStatus,
+    List<Comment>? comments,
+  }) => Order(
     id: id,
     projectName: projectName,
     status: status ?? this.status,
@@ -191,8 +206,8 @@ class Order {
     deliveryAddress: deliveryAddress,
     tmDetails: tmDetails,
     comments: comments ?? this.comments,
-    rawStatus: rawStatus,
-    deliveryStatus: deliveryStatus,
+    rawStatus: rawStatus ?? this.rawStatus,
+    placedBy: placedBy,
   );
 
   /// True when a real technician is attached.
@@ -205,31 +220,25 @@ class Order {
     return t.isNotEmpty && t.toLowerCase() != 'not assigned';
   }
 
-  String get statusLabel {
-    switch (status) {
-      case OrderStatus.active:
-        return 'Active';
-      case OrderStatus.completed:
-        return 'Completed';
-      case OrderStatus.pending:
-        return 'Pending';
-      case OrderStatus.cancelled:
-        return 'Cancelled';
-    }
-  }
+  String get statusLabel => orderStatusLabel(rawStatus);
 
   factory Order.fromJson(Map<String, dynamic> json) {
     final project = json['project'] as Map<String, dynamic>?;
     final assignedTo = json['assignedTo'] as Map<String, dynamic>?;
     final tmList = (json['tmDetails'] as List<dynamic>?) ?? [];
     final commentList = (json['comments'] as List<dynamic>?) ?? [];
+    final placer = json['placedBy'] as Map<String, dynamic>?;
+    final placerRole =
+        (placer?['role'] as Map<String, dynamic>?)?['name'] as String?;
 
     return Order(
+      placedBy: placer == null
+          ? null
+          : '${placer['name']}${placerRole != null ? ' ($placerRole)' : ''}',
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
       projectName: project?['projectName'] as String? ?? '',
       status: mapOrderStatus(json['status'] as String?),
       rawStatus: json['status'] as String? ?? '',
-      deliveryStatus: json['deliveryStatus'] as String? ?? '',
       grade: json['productGrade'] as String? ?? '',
       quantity: json['quantity'] as String? ?? '',
       product: json['productName'] as String? ?? '',

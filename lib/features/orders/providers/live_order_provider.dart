@@ -65,7 +65,12 @@ class LiveOrderNotifier extends AsyncNotifier<Order?> {
         final statusStr = raw['status'] as String?;
         if (statusStr == null) return;
 
-        state = AsyncData(current.copyWith(status: mapOrderStatus(statusStr)));
+        state = AsyncData(
+          current.copyWith(
+            status: mapOrderStatus(statusStr),
+            rawStatus: statusStr,
+          ),
+        );
         // The list screens show status too, so let them refetch.
         ref.invalidate(activeOrdersProvider);
         ref.invalidate(pastOrdersProvider);

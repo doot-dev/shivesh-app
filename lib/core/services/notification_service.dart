@@ -64,16 +64,13 @@ class NotificationService {
     final messaging = FirebaseMessaging.instance;
 
     // Request permission (iOS + Android 13+)
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await messaging.requestPermission(alert: true, badge: true, sound: true);
 
     // Android notification channel
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(_androidChannel);
 
     // Init flutter_local_notifications (for foreground display)
@@ -134,8 +131,9 @@ class NotificationService {
 
   Future<void> _registerToken(String token) async {
     _currentToken = token;
-    final platform =
-        defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+    final platform = defaultTargetPlatform == TargetPlatform.iOS
+        ? 'ios'
+        : 'android';
     try {
       await _apiService.registerFcmToken(token, platform);
     } catch (_) {
