@@ -17,9 +17,10 @@ String _fmtTimeAgo(String? iso) {
 /// receives raw status strings over the WebSocket.
 OrderStatus mapOrderStatus(String? s) {
   switch (s) {
+    case 'CANCELLED':
+      return OrderStatus.cancelled;
     case 'DELIVERED':
     case 'COMPLETED':
-    case 'CANCELLED':
       return OrderStatus.completed;
     case 'NEW':
     case 'CONFIRMED':
@@ -30,10 +31,15 @@ OrderStatus mapOrderStatus(String? s) {
   }
 }
 
-enum OrderStatus { active, completed, pending }
+enum OrderStatus { active, completed, pending, cancelled }
 
 class TmDetail {
   const TmDetail({
+    this.id = '',
+    this.status = 'ASSIGNED',
+    this.approvalStatus = 'PENDING',
+    this.rejectionReason,
+    this.rejectedByType,
     required this.tmNumber,
     required this.truckNo,
     required this.qty,
@@ -43,6 +49,18 @@ class TmDetail {
     this.challanUrl,
   });
 
+  final String id;
+
+  /// ASSIGNED / IN_TRANSIT / REACHED / DELIVERED — per truck (W32).
+  final String status;
+
+  /// PENDING / ACCEPTED / REJECTED.
+  final String approvalStatus;
+  final String? rejectionReason;
+
+  /// CLIENT when the client rejected it at site, USER when the office did.
+  final String? rejectedByType;
+
   final String tmNumber;
   final String truckNo;
   final String qty;
@@ -51,7 +69,21 @@ class TmDetail {
   final String challanNo;
   final String? challanUrl;
 
+  /// D18: the client may reject a truck once it has reached site, before the
+  /// challan is added (the server enforces the same rule).
+  bool get canClientReject =>
+      status == 'REACHED' &&
+      (challanUrl == null || challanUrl!.isEmpty) &&
+      approvalStatus == 'PENDING';
+
+  bool get isRejected => approvalStatus == 'REJECTED';
+
   factory TmDetail.fromJson(Map<String, dynamic> json) => TmDetail(
+    id: json['id'] as String? ?? '',
+    status: json['status'] as String? ?? 'ASSIGNED',
+    approvalStatus: json['approvalStatus'] as String? ?? 'PENDING',
+    rejectionReason: json['rejectionReason'] as String?,
+    rejectedByType: json['rejectedByType'] as String?,
     tmNumber: json['tmNumber'] as String? ?? '',
     truckNo: json['truckNo'] as String? ?? '',
     qty: json['qty'] as String? ?? '',
@@ -116,7 +148,20 @@ class Order {
     this.deliveryAddress,
     this.tmDetails = const [],
     this.comments = const [],
+    this.rawStatus = '',
+    this.deliveryStatus = '',
   });
+
+  /// Server status (NEW, CONFIRMED, …) and delivery step — needed for the
+  /// cancel rule (D15) and the "Reached" step (W32).
+  final String rawStatus;
+  final String deliveryStatus;
+
+  /// D15: the client can cancel until the order is dispatched.
+  bool get canClientCancel =>
+      (rawStatus == 'NEW' || rawStatus == 'CONFIRMED') &&
+      deliveryStatus == 'ASSIGNED' &&
+      tmDetails.every((tm) => tm.status == 'ASSIGNED');
 
   final String id;
   final String projectName;
@@ -146,6 +191,8 @@ class Order {
     deliveryAddress: deliveryAddress,
     tmDetails: tmDetails,
     comments: comments ?? this.comments,
+    rawStatus: rawStatus,
+    deliveryStatus: deliveryStatus,
   );
 
   /// True when a real technician is attached.
@@ -166,6 +213,8 @@ class Order {
         return 'Completed';
       case OrderStatus.pending:
         return 'Pending';
+      case OrderStatus.cancelled:
+        return 'Cancelled';
     }
   }
 
@@ -179,6 +228,8 @@ class Order {
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
       projectName: project?['projectName'] as String? ?? '',
       status: mapOrderStatus(json['status'] as String?),
+      rawStatus: json['status'] as String? ?? '',
+      deliveryStatus: json['deliveryStatus'] as String? ?? '',
       grade: json['productGrade'] as String? ?? '',
       quantity: json['quantity'] as String? ?? '',
       product: json['productName'] as String? ?? '',

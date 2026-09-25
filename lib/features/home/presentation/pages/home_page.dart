@@ -453,23 +453,25 @@ class _ProjectCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InfoCell(
-                        label: 'Remaining credits',
-                        value: project.remainingCredits,
+                if (showCreditFigures) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InfoCell(
+                          label: 'Remaining credits',
+                          value: project.remainingCredits,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: InfoCell(
-                        label: 'Credit period',
-                        value: project.creditPeriod,
+                      Expanded(
+                        child: InfoCell(
+                          label: 'Credit period',
+                          value: project.creditPeriod,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

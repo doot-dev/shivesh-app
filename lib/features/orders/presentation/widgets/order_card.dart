@@ -256,6 +256,13 @@ class OrderStatusPill extends StatelessWidget {
         );
       case OrderStatus.pending:
         return StatusPill.warning('Pending');
+      case OrderStatus.cancelled:
+        return const StatusPill(
+          label: 'Cancelled',
+          bg: Color(0xFFFDECEA),
+          fg: Color(0xFFC62828),
+          icon: Icons.cancel_outlined,
+        );
     }
   }
 }

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 /// Wire values are the backend's `CubeTestPeriod` enum. The client app is
 /// READ-ONLY for cube tests — technicians and admins create them — so this only
 /// ever parses [fromApi], never sends.
-enum CubeTestPeriod { sevenDays, fourteenDays, twentyOneDays, custom }
+enum CubeTestPeriod { sevenDays, fourteenDays, fifteenDays, twentyOneDays, twentyEightDays, custom }
 
 extension CubeTestPeriodX on CubeTestPeriod {
   String get label {
@@ -14,8 +14,12 @@ extension CubeTestPeriodX on CubeTestPeriod {
         return '7 days';
       case CubeTestPeriod.fourteenDays:
         return '14 days';
+      case CubeTestPeriod.fifteenDays:
+        return '15 days';
       case CubeTestPeriod.twentyOneDays:
         return '21 days';
+      case CubeTestPeriod.twentyEightDays:
+        return '28 days';
       case CubeTestPeriod.custom:
         return 'Custom date';
     }
@@ -25,8 +29,12 @@ extension CubeTestPeriodX on CubeTestPeriod {
     switch (v) {
       case 'FOURTEEN_DAYS':
         return CubeTestPeriod.fourteenDays;
+      case 'FIFTEEN_DAYS':
+        return CubeTestPeriod.fifteenDays;
       case 'TWENTYONE_DAYS':
         return CubeTestPeriod.twentyOneDays;
+      case 'TWENTYEIGHT_DAYS':
+        return CubeTestPeriod.twentyEightDays;
       case 'CUSTOM':
         return CubeTestPeriod.custom;
       case 'SEVEN_DAYS':
@@ -81,7 +89,8 @@ class CubeTest {
       createdAt == null ? '' : _dateTimeFmt.format(createdAt!);
 
   /// True once the scheduled testing date has arrived.
-  bool get isDue => !toDate.isAfter(DateTime.now());
+  /// Test date passed and no result yet (matches the server's DUE status).
+  bool get isDue => !hasFile && !toDate.isAfter(DateTime.now());
 
   /// Whole days until the test is due; negative once it has passed.
   int get daysUntilDue {

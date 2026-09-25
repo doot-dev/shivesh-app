@@ -9,6 +9,9 @@ import '../../../../core/widgets/app_widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/live_order_provider.dart';
+import '../../../../core/providers/client_api_provider.dart';
+import '../../../../core/utils/links.dart';
+import 'package:dio/dio.dart';
 
 /// Order details + live updates on ONE screen.
 ///
@@ -200,6 +203,20 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                         ),
                       ),
 
+                      // D15: cancel directly until the order is dispatched.
+                      if (order.canClientCancel)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                              label: const Text('Cancel order', style: TextStyle(color: Colors.red)),
+                              style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                              onPressed: () => _cancelOrder(context, ref, order.id, widget.orderId),
+                            ),
+                          ),
+                        ),
+
                       if (order.tmDetails.isNotEmpty) ...[
                         SliverToBoxAdapter(
                           child: Padding(
@@ -212,7 +229,7 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                         ),
                         SliverToBoxAdapter(
                           child: SizedBox(
-                            height: 168,
+                            height: 212,
                             child: ListView.separated(
                               // Horizontal so multiple TMs never push the update feed
                               // off the screen.
@@ -224,7 +241,7 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                               separatorBuilder: (_, __) =>
                                   const SizedBox(width: 12),
                               itemBuilder: (context, i) =>
-                                  _TmCard(tm: order.tmDetails[i]),
+                                  _TmCard(tm: order.tmDetails[i], orderId: order.id, routeOrderId: widget.orderId),
                             ),
                           ),
                         ),
@@ -672,14 +689,17 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-class _TmCard extends StatelessWidget {
-  const _TmCard({required this.tm});
+class _TmCard extends ConsumerWidget {
+  const _TmCard({required this.tm, required this.orderId, required this.routeOrderId});
 
   final TmDetail tm;
+  final String orderId;
+  final String routeOrderId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final hasChallan = tm.challanUrl != null && tm.challanUrl!.isNotEmpty;
 
     return SizedBox(
       width: 240,
@@ -691,22 +711,17 @@ class _TmCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.local_shipping_rounded,
-                  size: 18,
-                  color: AppColors.primary,
-                ),
+                const Icon(Icons.local_shipping_rounded, size: 18, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     tm.tmNumber.isEmpty ? 'TM' : tm.tmNumber,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
+                _TruckChip(tm: tm),
               ],
             ),
             const SizedBox(height: 10),
@@ -714,23 +729,48 @@ class _TmCard extends StatelessWidget {
             _TmLine(label: 'Qty', value: tm.qty),
             _TmLine(label: 'Challan', value: tm.challanNo),
             _TmLine(label: 'Batch', value: _batchWindow(tm)),
+            if (tm.isRejected)
+              Text(
+                'Rejected${tm.rejectedByType == 'CLIENT' ? ' by you' : ''}: ${tm.rejectionReason ?? ''}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+              ),
             const Spacer(),
-            if (tm.challanUrl != null)
-              SizedBox(
-                width: double.infinity,
-                height: 32,
-                child: OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppStyles.radiusSm),
+            Row(
+              children: [
+                if (hasChallan)
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: OutlinedButton(
+                        onPressed: () => openServerLink(ref, tm.challanUrl!),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppStyles.radiusSm)),
+                        ),
+                        child: const Text('View challan'),
+                      ),
                     ),
                   ),
-                  child: const Text('View challan'),
-                ),
-              ),
+                if (tm.canClientReject)
+                  Expanded(
+                    child: SizedBox(
+                      height: 32,
+                      child: OutlinedButton(
+                        onPressed: () => _rejectTruck(context, ref, orderId, routeOrderId, tm),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          side: const BorderSide(color: Colors.red),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppStyles.radiusSm)),
+                        ),
+                        child: const Text('Reject truck', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -738,11 +778,98 @@ class _TmCard extends StatelessWidget {
   }
 
   String _batchWindow(TmDetail tm) {
-    final parts = [
-      tm.batchStartTime,
-      tm.batchEndTime,
-    ].where((s) => s.isNotEmpty).toList();
+    final parts = [tm.batchStartTime, tm.batchEndTime].where((s) => s.isNotEmpty).toList();
     return parts.join(' → ');
+  }
+}
+
+class _TruckChip extends StatelessWidget {
+  const _TruckChip({required this.tm});
+  final TmDetail tm;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = tm.isRejected
+        ? ('Rejected', Colors.red)
+        : switch (tm.status) {
+            'IN_TRANSIT' => ('On the way', Colors.orange),
+            'REACHED' => ('At site', Colors.blue),
+            'DELIVERED' || 'COMPLETED' => ('Delivered', Colors.green),
+            _ => ('Assigned', Colors.grey),
+          };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+      child: Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+String _apiError(Object e, String fallback) =>
+    e is DioException ? (e.response?.data is Map ? (e.response!.data['message'] as String? ?? fallback) : fallback) : fallback;
+
+Future<void> _cancelOrder(BuildContext context, WidgetRef ref, String orderId, String routeOrderId) async {
+  final ctrl = TextEditingController();
+  final reason = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Cancel this order?'),
+      content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Reason'), autofocus: true),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Keep order')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Cancel order')),
+      ],
+    ),
+  );
+  if (reason == null || reason.isEmpty || !context.mounted) return;
+  try {
+    await ref.read(clientApiProvider).cancelOrder(orderId, reason);
+    ref.read(liveOrderProvider(routeOrderId).notifier).refresh();
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Order cancelled')));
+  } catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_apiError(e, 'Could not cancel'))));
+  }
+}
+
+const _rejectReasons = ['Quality / slump not OK', 'Damaged / segregated', 'Wrong grade', 'Too late', 'Other'];
+
+Future<void> _rejectTruck(BuildContext context, WidgetRef ref, String orderId, String routeOrderId, TmDetail tm) async {
+  var reason = _rejectReasons.first;
+  final note = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text('Reject ${tm.tmNumber}?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('The truck will not be billed. The office will arrange a replacement.'),
+            const SizedBox(height: 12),
+            DropdownButton<String>(
+              value: reason,
+              isExpanded: true,
+              items: _rejectReasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+              onChanged: (v) => setState(() => reason = v ?? reason),
+            ),
+            TextField(controller: note, decoration: const InputDecoration(labelText: 'Note (optional)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Back')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject truck')),
+        ],
+      ),
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    await ref.read(clientApiProvider).rejectTruck(orderId, tm.id, reason, note: note.text.trim());
+    ref.read(liveOrderProvider(routeOrderId).notifier).refresh();
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${tm.tmNumber} rejected')));
+  } catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_apiError(e, 'Could not reject'))));
   }
 }
 

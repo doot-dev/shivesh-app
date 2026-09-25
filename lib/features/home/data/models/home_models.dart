@@ -1,3 +1,8 @@
+/// The credit figures below are NOT real yet: "remaining credits" is the raw
+/// limit and the profile's payment due is hard-coded to 0 (gap W17). They stay
+/// hidden until the backend returns real used/available credit (plan P1.14).
+const bool showCreditFigures = false;
+
 class ProjectSummary {
   const ProjectSummary({
     required this.id,
@@ -22,7 +27,9 @@ class ProjectSummary {
       name: json['projectName'] as String? ?? '',
       location: json['projectLocation'] as String? ?? '',
       remainingCredits: '₹${_formatCredit(creditAmount)}',
-      creditPeriod: '${json['creditResetPeriodDays'] ?? 30} Days',
+      creditPeriod: json['creditResetPeriodDays'] != null
+          ? '${json['creditResetPeriodDays']} Days'
+          : 'Not set',
     );
   }
 
@@ -65,7 +72,9 @@ class ProjectDetail {
       siteName: json['siteName'] as String? ?? '',
       location: json['projectLocation'] as String? ?? '',
       remainingCredits: '₹${ProjectSummary._formatCredit(creditAmount)}',
-      creditPeriod: '${json['creditResetPeriodDays'] ?? 30} Days',
+      creditPeriod: json['creditResetPeriodDays'] != null
+          ? '${json['creditResetPeriodDays']} Days'
+          : 'Not set',
       projectManager: json['projectManager'] as String?,
       address: json['address'] as String?,
     );
@@ -73,13 +82,24 @@ class ProjectDetail {
 }
 
 class ProjectProduct {
-  const ProjectProduct({required this.productName, required this.productGrade});
+  const ProjectProduct({
+    required this.productName,
+    required this.productGrade,
+    this.unit = 'CBM',
+    this.isConcrete = true,
+  });
 
   final String productName;
   final String productGrade;
 
+  /// W38: each material has its own unit (CBM, NOS, MT, BAG …).
+  final String unit;
+  final bool isConcrete;
+
   factory ProjectProduct.fromJson(Map<String, dynamic> json) => ProjectProduct(
     productName: json['productName'] as String? ?? '',
     productGrade: json['productGrade'] as String? ?? '',
+    unit: json['unit'] as String? ?? 'CBM',
+    isConcrete: json['isConcrete'] as bool? ?? true,
   );
 }

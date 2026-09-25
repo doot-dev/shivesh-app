@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../features/bills/data/models/bill_models.dart';
 
 import '../../features/cube_test/data/models/cube_test_model.dart';
 import '../../features/home/data/models/home_models.dart';
@@ -135,6 +136,41 @@ class ClientApiService {
     return data
         .map((e) => CubeTestEntry.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // ─── Money (P1.14, P1.16) ───────────────────────────────────────────────
+
+  Future<CreditPosition> getCredit() async {
+    final res = await _dio.get('$_base/credit');
+    return CreditPosition.fromJson(res.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<List<ClientBill>> getBills({String? projectId}) async {
+    final res = await _dio.get(
+      '$_base/bills',
+      queryParameters: {if (projectId != null) 'projectId': projectId},
+    );
+    return (res.data['data'] as List<dynamic>)
+        .map((b) => ClientBill.fromJson(b as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Path for the invoice PDF — opened with openServerLink (token in the URL).
+  String invoicePath(String billNo) => '$_base/bills/$billNo/invoice';
+
+  // ─── Order actions (D15, D18) ──────────────────────────────────────────
+
+  /// Cancel before dispatch. Throws DioException(409) once dispatched.
+  Future<void> cancelOrder(String orderId, String reason) async {
+    await _dio.post('$_base/orders/$orderId/cancel', data: {'reason': reason});
+  }
+
+  /// Reject a truck at site (only while REACHED and before its challan).
+  Future<void> rejectTruck(String orderId, String tmId, String reason, {String? note}) async {
+    await _dio.post(
+      '$_base/orders/$orderId/tm/$tmId/reject',
+      data: {'reason': reason, if (note != null && note.isNotEmpty) 'note': note},
+    );
   }
 
   Future<UserProfile> getProfile() async {

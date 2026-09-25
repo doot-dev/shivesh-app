@@ -27,6 +27,9 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
   String? _selectedProduct;
   String? _selectedGrade;
 
+  /// Unit of the selected product (W38) — refreshed on every build.
+  String _unit = 'CBM';
+
   final _projectFieldKey = GlobalKey<FormFieldState<String>>();
   final _productFieldKey = GlobalKey<FormFieldState<String>>();
   final _gradeFieldKey = GlobalKey<FormFieldState<String>>();
@@ -194,7 +197,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             projectId: _selectedProjectId!,
             productName: _selectedProduct!,
             productGrade: _selectedGrade!,
-            quantity: '${_quantityController.text.trim()} m3',
+            quantity: '${_quantityController.text.trim()} $_unit',
             date: dateStr,
             time: timeStr,
           );
@@ -238,6 +241,11 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         ?.map((p) => p.productName)
         .toSet()
         .toList();
+    _unit = projectProductsAsync?.value
+            ?.where((p) => p.productName == _selectedProduct)
+            .map((p) => p.unit)
+            .firstOrNull ??
+        'CBM';
     final gradeOptions =
         (_selectedProduct != null && projectProductsAsync?.value != null)
         ? projectProductsAsync!.value!
@@ -330,8 +338,8 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
             TextFormField(
               controller: _quantityController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: 'Enter quantity in m3',
+              decoration: InputDecoration(
+                hintText: 'Enter quantity in $_unit',
               ),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {

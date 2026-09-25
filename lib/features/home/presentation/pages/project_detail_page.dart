@@ -121,15 +121,19 @@ class _ProjectDetailBody extends ConsumerWidget {
         controller: tabController,
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.textMuted,
-        labelStyle:
-            const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        unselectedLabelStyle:
-            const TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w400,
+          fontSize: 14,
+        ),
         indicatorColor: AppColors.primary,
         indicatorWeight: 3,
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: AppColors.border,
-        tabs: const [Tab(text: 'Active Orders'), Tab(text: 'Order History')],
+        tabs: const [
+          Tab(text: 'Active Orders'),
+          Tab(text: 'Order History'),
+        ],
       ),
     );
   }
@@ -220,26 +224,28 @@ class _ProjectInfoCard extends StatelessWidget {
               value: project.projectManager!,
             ),
           ],
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _CreditChip(
-                  label: 'Remaining Credits',
-                  value: project.remainingCredits,
+          if (showCreditFigures) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: AppColors.border),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _CreditChip(
+                    label: 'Remaining Credits',
+                    value: project.remainingCredits,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _CreditChip(
-                  label: 'Credit Period',
-                  value: project.creditPeriod,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _CreditChip(
+                    label: 'Credit Period',
+                    value: project.creditPeriod,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -266,17 +272,17 @@ class _InfoRow extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           '$label: ',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
         ),
         Expanded(
           child: Text(
             value,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],
@@ -305,17 +311,17 @@ class _CreditChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                ),
+              color: AppColors.textMuted,
+              fontSize: 11,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -339,9 +345,9 @@ class _OrderList extends StatelessWidget {
           return Center(
             child: Text(
               isPast ? 'No order history' : 'No active orders',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
             ),
           );
         }
@@ -349,8 +355,7 @@ class _OrderList extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
           itemCount: orders.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) =>
-              _OrderCard(order: orders[index]),
+          itemBuilder: (context, index) => _OrderCard(order: orders[index]),
         );
       },
     );
@@ -435,9 +440,26 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, bg, fg) = switch (status) {
-      OrderStatus.active => ('Active', const Color(0xFFE8F5E9), AppColors.accent),
-      OrderStatus.completed => ('Completed', const Color(0xFFEEEEEE), AppColors.textMuted),
-      OrderStatus.pending => ('Pending', const Color(0xFFFFF8E1), AppColors.secondary),
+      OrderStatus.active => (
+        'Active',
+        const Color(0xFFE8F5E9),
+        AppColors.accent,
+      ),
+      OrderStatus.completed => (
+        'Completed',
+        const Color(0xFFEEEEEE),
+        AppColors.textMuted,
+      ),
+      OrderStatus.pending => (
+        'Pending',
+        const Color(0xFFFFF8E1),
+        AppColors.secondary,
+      ),
+      OrderStatus.cancelled => (
+        'Cancelled',
+        const Color(0xFFFDECEA),
+        const Color(0xFFC62828),
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -447,11 +469,7 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

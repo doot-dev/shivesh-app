@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/providers/auth_providers.dart';
+import 'package:go_router/go_router.dart';
+import '../../../bills/presentation/pages/bills_page.dart' show inr;
+import '../../../bills/providers/bill_providers.dart';
 import '../../data/models/user_profile.dart';
 import '../../providers/profile_providers.dart';
 
@@ -23,8 +26,9 @@ class ProfilePage extends ConsumerWidget {
             children: [
               Text(
                 'Failed to load profile',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: AppColors.textMuted),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textMuted,
+                ),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
@@ -129,15 +133,26 @@ class _ProfileBody extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Credit period progress',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  ...[
+                    Text(
+                      'Credit',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _CreditCard(profile: profile),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 12),
+                    const _LiveCreditCard(),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.receipt_long_outlined),
+                        label: const Text('Bills & invoices'),
+                        onPressed: () => context.push('/bills'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                   Text(
                     'Company details',
                     style: theme.textTheme.titleSmall?.copyWith(
@@ -202,69 +217,6 @@ class _ProfileBody extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-class _CreditCard extends StatelessWidget {
-  const _CreditCard({required this.profile});
-
-  final UserProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Payment Due',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '₹${_formatAmount(profile.paymentDue)}',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: profile.creditProgress,
-              backgroundColor: AppColors.border,
-              color: AppColors.primary,
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${profile.creditDaysRemaining} days remaining',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatAmount(double amount) {
-    if (amount >= 100000) {
-      return '${(amount / 100000).toStringAsFixed(0)},00,000';
-    }
-    return amount.toStringAsFixed(0);
   }
 }
 
@@ -358,4 +310,54 @@ class _CompanyRow extends StatelessWidget {
   }
 }
 
+/// Real credit from the server (P1.14): used vs limit, what's due and when.
+class _LiveCreditCard extends ConsumerWidget {
+  const _LiveCreditCard();
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final credit = ref.watch(creditProvider);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: credit.when(
+        loading: () => const LinearProgressIndicator(),
+        error: (_, __) => const Text('Credit details unavailable right now'),
+        data: (c) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Payment due', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+            const SizedBox(height: 4),
+            Text(inr(c.outstanding), style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            if (c.overdueAmount > 0)
+              Text('${inr(c.overdueAmount)} overdue', style: theme.textTheme.bodySmall?.copyWith(color: Colors.red, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: c.utilisation,
+                backgroundColor: AppColors.border,
+                color: c.flag == 'OK' ? AppColors.primary : Colors.red,
+                minHeight: 8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              c.limit > 0
+                  ? 'Used ${inr(c.used)} of ${inr(c.limit)} · available ${inr(c.available)}'
+                  : 'Credit limit not set',
+              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
+            if (c.daysLeft != null)
+              Text('Next payment due in ${c.daysLeft} days', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
