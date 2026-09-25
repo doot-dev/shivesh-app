@@ -48,65 +48,122 @@ class AppCard extends StatelessWidget {
   }
 }
 
-/// Small rounded label — order status, counts, tags.
-class StatusPill extends StatelessWidget {
-  const StatusPill({
+/// Colour group for a status. Pick it with [toneFor] so one status word always
+/// gets one colour, on every screen.
+enum Tone { ok, warn, err, primary, muted }
+
+/// COMPLETED, PAID → ok; DELAYED, PARTIALLY_PAID → warn; CANCELLED, OVERDUE →
+/// err; NEW, DISPATCHED, SENT → primary; ASSIGNED and anything unknown → muted.
+Tone toneFor(String status) =>
+    switch (status.toUpperCase().replaceAll(' ', '_')) {
+      'COMPLETED' ||
+      'REACHED' ||
+      'PAID' ||
+      'ACCEPTED' ||
+      'DELIVERED' ||
+      'TESTED' => Tone.ok,
+      'DELAYED' ||
+      'PENDING' ||
+      'PARTIALLY_PAID' ||
+      'DUE' ||
+      'DUE_TODAY' => Tone.warn,
+      'CANCELLED' || 'REJECTED' || 'OVERDUE' => Tone.err,
+      'NEW' ||
+      'CONFIRMED' ||
+      'DISPATCHED' ||
+      'SENT' ||
+      'IN_PROGRESS' ||
+      'IN_TRANSIT' => Tone.primary,
+      _ => Tone.muted,
+    };
+
+/// "DISPATCHED" → "Dispatched", "PARTIALLY_PAID" → "Part paid". Never raw CAPS.
+String statusText(String status) => switch (status) {
+  '' => '—',
+  'PARTIALLY_PAID' => 'Part paid',
+  'IN_TRANSIT' => 'On the way',
+  'IN_PROGRESS' => 'Dispatched',
+  _ =>
+    status[0].toUpperCase() +
+        status.substring(1).toLowerCase().replaceAll('_', ' '),
+};
+
+/// (soft background, soft text, solid background, solid text) for a tone.
+/// Warn keeps dark text even when solid: white or amber on amber fails contrast.
+(Color, Color, Color, Color) _toneColors(Tone tone) {
+  final mutedFg = Color.lerp(AppColors.textMuted, AppColors.textPrimary, 0.4)!;
+  return switch (tone) {
+    Tone.ok => (
+      AppColors.successBg,
+      AppColors.successFg,
+      AppColors.successFg,
+      Colors.white,
+    ),
+    Tone.warn => (
+      AppColors.warningBg,
+      AppColors.warningFg,
+      AppColors.secondary,
+      AppColors.textPrimary,
+    ),
+    Tone.err => (
+      AppColors.dangerBg,
+      AppColors.dangerFg,
+      AppColors.dangerFg,
+      Colors.white,
+    ),
+    Tone.primary => (
+      AppColors.infoBg,
+      AppColors.primary,
+      AppColors.primary,
+      Colors.white,
+    ),
+    Tone.muted => (AppColors.shimmerBase, mutedFg, mutedFg, Colors.white),
+  };
+}
+
+/// The one status pill: soft tint with a 6px dot and the label in the tone
+/// colour, or [solid] (filled, white text and dot).
+class StatusBadge extends StatelessWidget {
+  const StatusBadge(
+    this.label, {
     super.key,
-    required this.label,
-    required this.bg,
-    required this.fg,
-    this.showDot = false,
-    this.icon,
+    this.tone = Tone.muted,
+    this.solid = false,
   });
 
-  /// Convenience constructors so status colours are chosen in one place.
-  factory StatusPill.success(String label, {bool showDot = false}) =>
-      StatusPill(
-        label: label,
-        bg: AppColors.successBg,
-        fg: AppColors.successFg,
-        showDot: showDot,
-      );
-
-  factory StatusPill.warning(String label) => StatusPill(
-    label: label,
-    bg: AppColors.warningBg,
-    fg: AppColors.warningFg,
-  );
-
-  factory StatusPill.info(String label) =>
-      StatusPill(label: label, bg: AppColors.infoBg, fg: AppColors.infoFg);
+  /// From a server status word: tone and readable label in one go.
+  StatusBadge.of(String status, {super.key, String? label, this.solid = false})
+    : label = label ?? statusText(status),
+      tone = toneFor(status);
 
   final String label;
-  final Color bg;
-  final Color fg;
-  final bool showDot;
-  final IconData? icon;
+  final Tone tone;
+  final bool solid;
 
   @override
   Widget build(BuildContext context) {
+    final (bg, fg, solidBg, solidFg) = _toneColors(tone);
+    final color = solid ? solidFg : fg;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      constraints: const BoxConstraints(minHeight: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
       decoration: BoxDecoration(
-        color: bg,
+        color: solid ? solidBg : bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showDot) ...[
-            _PulsingDot(color: fg),
-            const SizedBox(width: 6),
-          ] else if (icon != null) ...[
-            Icon(icon, size: 12, color: fg),
-            const SizedBox(width: 4),
-          ],
+          _Dot(color: color, size: 6),
+          const SizedBox(width: 6),
           Text(
             label,
+            maxLines: 1,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: fg,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              height: 1.1,
+              height: 1.2,
+              color: color,
             ),
           ),
         ],
@@ -115,39 +172,66 @@ class StatusPill extends StatelessWidget {
   }
 }
 
-/// A slow breathing dot — signals "this is live / in progress".
-class _PulsingDot extends StatefulWidget {
-  const _PulsingDot({required this.color});
-  final Color color;
+/// Small round pill holding a number, e.g. a section's item count.
+class CountBubble extends StatelessWidget {
+  const CountBubble(
+    this.count, {
+    super.key,
+    this.tone = Tone.primary,
+    this.solid = false,
+  });
 
-  @override
-  State<_PulsingDot> createState() => _PulsingDotState();
-}
-
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
+  final int count;
+  final Tone tone;
+  final bool solid;
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: Tween<double>(begin: 0.35, end: 1).animate(_c),
-      child: Container(
-        width: 7,
-        height: 7,
-        decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+    final (bg, fg, solidBg, solidFg) = _toneColors(tone);
+    return Container(
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: solid ? solidBg : bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$count',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          height: 1.1,
+          color: solid ? solidFg : fg,
+        ),
       ),
     );
   }
+}
+
+/// The status colour alone, for tight spots (a list row, a legend).
+class StatusDot extends StatelessWidget {
+  const StatusDot({super.key, required this.tone, this.size = 8});
+
+  final Tone tone;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) =>
+      _Dot(color: _toneColors(tone).$2, size: size);
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.color, required this.size});
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  );
 }
 
 /// Label above value — the dense metric layout used across order cards.
@@ -396,20 +480,7 @@ class SectionHeader extends StatelessWidget {
             ),
             if (count != null && count! > 0) ...[
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$count',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              CountBubble(count!),
             ],
           ],
         ),

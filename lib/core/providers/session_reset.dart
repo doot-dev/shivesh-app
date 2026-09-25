@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../network/offline_cache.dart';
 import 'access_provider.dart';
 
+import '../../features/bills/providers/bill_providers.dart';
 import '../../features/create_order/providers/create_order_providers.dart';
 import '../../features/cube_test/providers/cube_test_providers.dart';
 import '../../features/home/providers/home_providers.dart';
@@ -50,6 +51,9 @@ void resetSessionData(Ref ref) {
   // Create-order lookups
   ref.invalidate(projectProductsProvider);
   ref.invalidate(projectNamesProvider);
+
+  // The month picked on the Bills screen
+  ref.invalidate(billMonthProvider);
 
   // Cube tests + the filter driving them
   ref.invalidate(allCubeTestsProvider);

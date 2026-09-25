@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/month_bar.dart';
 import '../../../orders/presentation/widgets/order_search_bar.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
@@ -16,7 +17,7 @@ import '../../providers/cube_test_providers.dart';
 /// attached report sheets.
 ///
 /// All filtering is server-side (see `allCubeTestsProvider`); the search box,
-/// date range and status chips write into one shared [CubeTestFilter] which
+/// casting month and status chips write into one shared [CubeTestFilter] which
 /// keys the request.
 class CubeTestsPage extends ConsumerStatefulWidget {
   const CubeTestsPage({super.key});
@@ -26,28 +27,6 @@ class CubeTestsPage extends ConsumerStatefulWidget {
 }
 
 class _CubeTestsPageState extends ConsumerState<CubeTestsPage> {
-  Future<void> _pickDateRange() async {
-    final filter = ref.read(cubeTestFilterProvider);
-    final now = DateTime.now();
-
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 2, 12, 31),
-      initialDateRange: filter.from != null && filter.to != null
-          ? DateTimeRange(start: filter.from!, end: filter.to!)
-          : null,
-      helpText: 'Filter by casting date',
-      saveText: 'Apply',
-    );
-
-    if (picked != null && mounted) {
-      ref
-          .read(cubeTestFilterProvider.notifier)
-          .setRange(picked.start, picked.end);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -124,12 +103,10 @@ class _CubeTestsPageState extends ConsumerState<CubeTestsPage> {
                     OrderSearchBar(
                       hintText: 'Search order, project or grade',
                       onQueryChanged: notifier.setQuery,
-                      onPickDates: _pickDateRange,
-                      onClearDates: notifier.clearDates,
-                      dateLabel: dateRangeLabel(filter.from, filter.to),
-                      hasDateFilter: filter.hasDate,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
+                    MonthBar(month: filter.month, onChanged: notifier.setMonth),
+                    const SizedBox(height: 12),
                     _StatusChips(
                       selected: filter.status,
                       onSelect: notifier.setStatus,
@@ -168,11 +145,11 @@ class _CubeTestsPageState extends ConsumerState<CubeTestsPage> {
                     icon: Icons.science_outlined,
                     title: filter.isActive
                         ? 'No matching reports'
-                        : 'No cube tests yet',
+                        : 'No cube tests in ${monthLabel(filter.month)}',
                     message: filter.isActive
-                        ? 'Try a different search, date range or status.'
-                        : 'Concrete cube test reports for your orders will '
-                              'appear here once our team logs them.',
+                        ? 'Try a different search, status or month.'
+                        : 'Reports show here by casting date once our team '
+                              'logs them. Use ‹ › to see another month.',
                   );
                 }
                 return RefreshIndicator(
@@ -217,7 +194,9 @@ class _StatusChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
+    // Wrap: at 300dp with large text the third chip drops to a new line.
+    return Wrap(
+      runSpacing: 8,
       children: CubeTestStatusFilter.values.map((status) {
         final active = status == selected;
         return Padding(
@@ -465,11 +444,11 @@ class _DuePill extends StatelessWidget {
     final days = test.daysUntilDue;
 
     if (days > 0) {
-      return StatusPill.info('in $days day${days == 1 ? '' : 's'}');
+      return StatusBadge('in $days day${days == 1 ? '' : 's'}');
     }
     if (days == 0) {
-      return StatusPill.warning('Due today');
+      return const StatusBadge('Due today', tone: Tone.warn);
     }
-    return StatusPill.success('Tested');
+    return const StatusBadge('Tested', tone: Tone.ok);
   }
 }

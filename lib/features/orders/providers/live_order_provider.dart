@@ -74,6 +74,7 @@ class LiveOrderNotifier extends AsyncNotifier<Order?> {
         // The list screens show status too, so let them refetch.
         ref.invalidate(activeOrdersProvider);
         ref.invalidate(pastOrdersProvider);
+        ref.invalidate(searchedOrdersProvider);
         break;
     }
   }

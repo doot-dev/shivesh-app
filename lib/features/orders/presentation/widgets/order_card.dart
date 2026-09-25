@@ -90,7 +90,7 @@ class OrderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              OrderStatusPill(status: order.status, label: order.statusLabel),
+              StatusBadge.of(order.rawStatus, label: order.statusLabel),
             ],
           ),
           const SizedBox(height: 14),
@@ -160,11 +160,13 @@ class OrderCard extends StatelessWidget {
                             color: AppColors.textMuted,
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            _schedule,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Text(
+                              _schedule,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -242,39 +244,5 @@ class _TechnicianTag extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-/// Maps an [OrderStatus] onto the shared pill. Single place that decides what
-/// colour an order status is anywhere in the app.
-class OrderStatusPill extends StatelessWidget {
-  const OrderStatusPill({super.key, required this.status, required this.label});
-
-  /// Colour group; [label] is the real step ("Dispatched", "Delayed", …).
-  final OrderStatus status;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    switch (status) {
-      case OrderStatus.active:
-        return StatusPill.success(label, showDot: true);
-      case OrderStatus.completed:
-        return StatusPill(
-          label: label,
-          bg: AppColors.infoBg,
-          fg: AppColors.infoFg,
-          icon: Icons.check_circle_outline_rounded,
-        );
-      case OrderStatus.pending:
-        return StatusPill.warning(label);
-      case OrderStatus.cancelled:
-        return StatusPill(
-          label: label,
-          bg: Color(0xFFFDECEA),
-          fg: Color(0xFFC62828),
-          icon: Icons.cancel_outlined,
-        );
-    }
   }
 }

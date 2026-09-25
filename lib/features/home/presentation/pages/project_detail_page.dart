@@ -4,6 +4,7 @@ import '../../../../core/providers/access_provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_widgets.dart';
 import '../../../orders/data/models/order_models.dart';
 import '../../data/models/home_models.dart';
 import '../../providers/home_providers.dart';
@@ -395,7 +396,7 @@ class _OrderCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                _StatusBadge(status: order.status, label: order.statusLabel),
+                StatusBadge.of(order.rawStatus, label: order.statusLabel),
               ],
             ),
             const SizedBox(height: 10),
@@ -430,50 +431,6 @@ class _OrderCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status, required this.label});
-
-  final OrderStatus status;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final (_, bg, fg) = switch (status) {
-      OrderStatus.active => (
-        'Active',
-        const Color(0xFFE8F5E9),
-        AppColors.accent,
-      ),
-      OrderStatus.completed => (
-        'Completed',
-        const Color(0xFFEEEEEE),
-        AppColors.textMuted,
-      ),
-      OrderStatus.pending => (
-        'Pending',
-        const Color(0xFFFFF8E1),
-        AppColors.secondary,
-      ),
-      OrderStatus.cancelled => (
-        'Cancelled',
-        const Color(0xFFFDECEA),
-        const Color(0xFFC62828),
-      ),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

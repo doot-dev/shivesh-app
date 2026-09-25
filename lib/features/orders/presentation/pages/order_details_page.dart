@@ -420,7 +420,7 @@ class _OrderHeader extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      _StatusChipOnDark(order: order),
+                      StatusBadge.of(order.rawStatus, label: order.statusLabel),
                     ],
                   ),
                 ],
@@ -428,50 +428,6 @@ class _OrderHeader extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Status as it appears on the dark header — translucent rather than the light
-/// pill used on white cards.
-class _StatusChipOnDark extends StatelessWidget {
-  const _StatusChipOnDark({required this.order});
-
-  final Order order;
-
-  @override
-  Widget build(BuildContext context) {
-    final active = order.status == OrderStatus.active;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (active) ...[
-            Container(
-              width: 7,
-              height: 7,
-              decoration: const BoxDecoration(
-                color: AppColors.accent,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            order.statusLabel,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -756,7 +712,7 @@ class _TmCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                _TruckChip(tm: tm),
+                StatusBadge.of(tm.isRejected ? 'REJECTED' : tm.status),
               ],
             ),
             const SizedBox(height: 10),
@@ -835,38 +791,6 @@ class _TmCard extends ConsumerWidget {
       tm.batchEndTime,
     ].where((s) => s.isNotEmpty).toList();
     return parts.join(' → ');
-  }
-}
-
-class _TruckChip extends StatelessWidget {
-  const _TruckChip({required this.tm});
-  final TmDetail tm;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = tm.isRejected
-        ? ('Rejected', Colors.red)
-        : switch (tm.status) {
-            'IN_TRANSIT' => ('On the way', Colors.orange),
-            'REACHED' => ('At site', Colors.blue),
-            'DELIVERED' || 'COMPLETED' => ('Delivered', Colors.green),
-            _ => ('Assigned', Colors.grey),
-          };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
   }
 }
 

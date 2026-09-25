@@ -146,10 +146,19 @@ class ClientApiService {
     return CreditPosition.fromJson(res.data['data'] as Map<String, dynamic>);
   }
 
-  Future<List<ClientBill>> getBills({String? projectId}) async {
+  /// [dateFrom]/[dateTo] (ISO `yyyy-MM-dd`) filter by invoice date.
+  Future<List<ClientBill>> getBills({
+    String? projectId,
+    String? dateFrom,
+    String? dateTo,
+  }) async {
     final res = await _dio.get(
       '$_base/bills',
-      queryParameters: {if (projectId != null) 'projectId': projectId},
+      queryParameters: {
+        if (projectId != null) 'projectId': projectId,
+        if (dateFrom != null) 'dateFrom': dateFrom,
+        if (dateTo != null) 'dateTo': dateTo,
+      },
     );
     return (res.data['data'] as List<dynamic>)
         .map((b) => ClientBill.fromJson(b as Map<String, dynamic>))

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/month_bar.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/orders_providers.dart';
 import '../widgets/order_card.dart';
@@ -38,26 +39,6 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
       }
       setState(() {});
     });
-  }
-
-  Future<void> _pickDateRange() async {
-    final filter = ref.read(orderFilterProvider);
-    final now = DateTime.now();
-
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 2, 12, 31),
-      initialDateRange: filter.from != null && filter.to != null
-          ? DateTimeRange(start: filter.from!, end: filter.to!)
-          : null,
-      helpText: 'Filter by delivery date',
-      saveText: 'Apply',
-    );
-
-    if (picked != null && mounted) {
-      ref.read(orderFilterProvider.notifier).setRange(picked.start, picked.end);
-    }
   }
 
   @override
@@ -125,14 +106,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage>
                       ],
                     ),
                     const SizedBox(height: 14),
-                    OrderSearchBar(
-                      onQueryChanged: notifier.setQuery,
-                      onPickDates: _pickDateRange,
-                      onClearDates: notifier.clearDates,
-                      dateLabel: dateRangeLabel(filter.from, filter.to),
-                      hasDateFilter: filter.hasDate,
-                    ),
-                    const SizedBox(height: 14),
+                    OrderSearchBar(onQueryChanged: notifier.setQuery),
+                    const SizedBox(height: 10),
+                    MonthBar(month: filter.month, onChanged: notifier.setMonth),
+                    const SizedBox(height: 12),
                     _SegmentedTabs(
                       controller: _tabController,
                       labels: const ['Active', 'Past'],
@@ -320,10 +297,7 @@ class _FilterSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final parts = <String>[
-      if (filter.hasQuery) '"${filter.query.trim()}"',
-      if (filter.hasDate) dateRangeLabel(filter.from, filter.to),
-    ];
+    final parts = ['"${filter.query.trim()}"', monthLabel(filter.month)];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
@@ -389,10 +363,12 @@ class _AsyncOrderList extends ConsumerWidget {
           // queue — showing "No active orders" there reads as a bug, and
           // offering "New order" is the wrong next step.
           if (filter.isActive) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.search_off_rounded,
               title: 'No matching orders',
-              message: 'Try a different name, order number or date.',
+              message:
+                  'Nothing in ${monthLabel(filter.month)}. Try a different '
+                  'name, order number or month.',
             );
           }
           return EmptyState(
@@ -400,9 +376,9 @@ class _AsyncOrderList extends ConsumerWidget {
                 ? Icons.history_rounded
                 : Icons.local_shipping_outlined,
             title: isPast ? 'No past orders' : 'No active orders',
-            message: isPast
-                ? 'Completed orders will show up here.'
-                : 'Place an order and follow it live.',
+            message:
+                'Nothing for ${monthLabel(filter.month)}. '
+                'Use ‹ › above to see another month.',
             actionLabel: isPast || !ref.can('orders.create')
                 ? null
                 : 'New order',
@@ -440,9 +416,5 @@ class _AsyncOrderList extends ConsumerWidget {
 
   void _invalidate(WidgetRef ref) {
     ref.invalidate(searchedOrdersProvider(filter));
-    // The unfiltered providers back the no-filter case, so refresh those too.
-    if (!filter.isActive) {
-      ref.invalidate(isPast ? pastOrdersProvider : activeOrdersProvider);
-    }
   }
 }

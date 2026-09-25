@@ -203,6 +203,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
           );
 
       ref.invalidate(activeOrdersProvider);
+      ref.invalidate(searchedOrdersProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

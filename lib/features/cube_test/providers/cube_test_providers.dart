@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/client_api_provider.dart';
+import '../../../core/widgets/month_bar.dart';
 import '../data/models/cube_test_model.dart';
 
 /// Which cube tests to show on the "Cube Tests" tab.
@@ -35,100 +36,74 @@ extension CubeTestStatusFilterX on CubeTestStatusFilter {
   }
 }
 
-/// The filter applied to the cube test list.
+/// The filter applied to the cube test list: search text, status and the
+/// casting month (defaults to this month).
 ///
 /// Value type with `==` defined on the NORMALISED fields, because it keys a
-/// `FutureProvider.family`: without that, an untrimmed keystroke or a different
-/// `DateTime` instance for the same day would be a new cache entry and refetch
-/// on every rebuild.
+/// `FutureProvider.family`: without that, an untrimmed keystroke would be a
+/// new cache entry and refetch on every rebuild.
 class CubeTestFilter {
-  const CubeTestFilter({
+  CubeTestFilter({
     this.query = '',
-    this.from,
-    this.to,
+    DateTime? month,
     this.status = CubeTestStatusFilter.all,
-  });
+  }) : month = monthOf(month ?? DateTime.now());
 
   /// Free text — matched server-side against order code, project, site,
   /// product and grade.
   final String query;
 
-  /// Casting-date range.
-  final DateTime? from;
-  final DateTime? to;
+  /// First day of the casting month shown.
+  final DateTime month;
 
   final CubeTestStatusFilter status;
 
   bool get hasQuery => query.trim().isNotEmpty;
-  bool get hasDate => from != null || to != null;
   bool get hasStatus => status != CubeTestStatusFilter.all;
-  bool get isActive => hasQuery || hasDate || hasStatus;
 
-  int get activeCount =>
-      (hasQuery ? 1 : 0) + (hasDate ? 1 : 0) + (hasStatus ? 1 : 0);
+  /// The month always applies, so "filtered" means search or status.
+  bool get isActive => hasQuery || hasStatus;
 
   CubeTestFilter copyWith({
     String? query,
-    DateTime? from,
-    DateTime? to,
+    DateTime? month,
     CubeTestStatusFilter? status,
-    bool clearFrom = false,
-    bool clearTo = false,
-  }) {
-    return CubeTestFilter(
-      query: query ?? this.query,
-      from: clearFrom ? null : (from ?? this.from),
-      to: clearTo ? null : (to ?? this.to),
-      status: status ?? this.status,
-    );
-  }
+  }) => CubeTestFilter(
+    query: query ?? this.query,
+    month: month ?? this.month,
+    status: status ?? this.status,
+  );
 
-  CubeTestFilter cleared() => const CubeTestFilter();
+  /// Drop search and status, keep the month.
+  CubeTestFilter cleared() => CubeTestFilter(month: month);
 
-  /// The backend only understands ISO `yyyy-MM-dd`; anything else is silently
-  /// ignored server-side, so format here rather than at the call site.
-  static String? _iso(DateTime? d) {
-    if (d == null) return null;
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return '${d.year}-$m-$day';
-  }
-
-  String? get fromIso => _iso(from);
-  String? get toIso => _iso(to);
+  String get fromIso => monthFromIso(month);
+  String get toIso => monthToIso(month);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is CubeTestFilter &&
           other.query.trim() == query.trim() &&
-          other.fromIso == fromIso &&
-          other.toIso == toIso &&
+          other.month == month &&
           other.status == status;
 
   @override
-  int get hashCode => Object.hash(query.trim(), fromIso, toIso, status);
+  int get hashCode => Object.hash(query.trim(), month, status);
 }
 
 /// Live filter for the Cube Tests screen, shared so the header, the result
 /// count and the list all read the same state.
 class CubeTestFilterNotifier extends Notifier<CubeTestFilter> {
   @override
-  CubeTestFilter build() => const CubeTestFilter();
+  CubeTestFilter build() => CubeTestFilter();
 
   void setQuery(String value) => state = state.copyWith(query: value);
 
   void setStatus(CubeTestStatusFilter status) =>
       state = state.copyWith(status: status);
 
-  void setRange(DateTime? from, DateTime? to) => state = state.copyWith(
-    from: from,
-    to: to,
-    clearFrom: from == null,
-    clearTo: to == null,
-  );
-
-  void clearDates() => state = state.copyWith(clearFrom: true, clearTo: true);
+  void setMonth(DateTime month) => state = state.copyWith(month: month);
 
   void clear() => state = state.cleared();
 }

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/client_api_provider.dart';
 import '../../../core/realtime/realtime_providers.dart';
+import '../../../core/widgets/month_bar.dart';
 import '../data/models/order_models.dart';
 
 /// Re-fetch this provider whenever the server pushes an order-level change.
@@ -35,19 +36,15 @@ final pastOrdersProvider = FutureProvider<List<Order>>((ref) {
   return ref.read(clientApiProvider).getOrders(type: 'past');
 });
 
-/// One order-list query: the Active/Past tab plus optional search text and a
-/// delivery-date window.
+/// One order-list query: the Active/Past tab, optional search text and the
+/// delivery month (defaults to this month).
 ///
 /// Used as a Riverpod family key, so it MUST be value-equal — two identical
 /// filters have to hash the same, or every rebuild would refetch and the list
 /// would flicker on each keystroke.
 class OrderFilter {
-  const OrderFilter({
-    this.type = 'active',
-    this.query = '',
-    this.from,
-    this.to,
-  });
+  OrderFilter({this.type = 'active', this.query = '', DateTime? month})
+    : month = monthOf(month ?? DateTime.now());
 
   /// `active` or `past`.
   final String type;
@@ -55,44 +52,26 @@ class OrderFilter {
   /// Free text: order code, project, product or grade.
   final String query;
 
-  /// Inclusive delivery-date window. Null means unbounded on that side.
-  final DateTime? from;
-  final DateTime? to;
+  /// First day of the delivery month shown.
+  final DateTime month;
 
   bool get hasQuery => query.trim().isNotEmpty;
-  bool get hasDate => from != null || to != null;
-  bool get isActive => hasQuery || hasDate;
 
-  OrderFilter copyWith({
-    String? type,
-    String? query,
-    DateTime? from,
-    DateTime? to,
-    bool clearFrom = false,
-    bool clearTo = false,
-  }) {
-    return OrderFilter(
-      type: type ?? this.type,
-      query: query ?? this.query,
-      from: clearFrom ? null : (from ?? this.from),
-      to: clearTo ? null : (to ?? this.to),
-    );
-  }
+  /// The month always applies, so "filtered" means the search box.
+  bool get isActive => hasQuery;
 
-  /// Drop the text and dates but keep the tab.
-  OrderFilter cleared() => OrderFilter(type: type);
+  OrderFilter copyWith({String? type, String? query, DateTime? month}) =>
+      OrderFilter(
+        type: type ?? this.type,
+        query: query ?? this.query,
+        month: month ?? this.month,
+      );
 
-  /// The backend only understands ISO `yyyy-MM-dd`; anything else is ignored
-  /// server-side, so format here rather than at the call site.
-  static String? _iso(DateTime? d) {
-    if (d == null) return null;
-    final m = d.month.toString().padLeft(2, '0');
-    final day = d.day.toString().padLeft(2, '0');
-    return '${d.year}-$m-$day';
-  }
+  /// Drop the text but keep the tab and the month.
+  OrderFilter cleared() => OrderFilter(type: type, month: month);
 
-  String? get fromIso => _iso(from);
-  String? get toIso => _iso(to);
+  String get fromIso => monthFromIso(month);
+  String get toIso => monthToIso(month);
 
   @override
   bool operator ==(Object other) =>
@@ -100,11 +79,10 @@ class OrderFilter {
       other is OrderFilter &&
           other.type == type &&
           other.query.trim() == query.trim() &&
-          other.fromIso == fromIso &&
-          other.toIso == toIso;
+          other.month == month;
 
   @override
-  int get hashCode => Object.hash(type, query.trim(), fromIso, toIso);
+  int get hashCode => Object.hash(type, query.trim(), month);
 }
 
 /// The live filter for the Orders screen.
@@ -114,22 +92,15 @@ class OrderFilter {
 /// rest of this app is already on the modern API.
 class OrderFilterNotifier extends Notifier<OrderFilter> {
   @override
-  OrderFilter build() => const OrderFilter();
+  OrderFilter build() => OrderFilter();
 
   void setQuery(String value) => state = state.copyWith(query: value);
 
   void setType(String type) => state = state.copyWith(type: type);
 
-  void setRange(DateTime? from, DateTime? to) => state = state.copyWith(
-    from: from,
-    to: to,
-    clearFrom: from == null,
-    clearTo: to == null,
-  );
+  void setMonth(DateTime month) => state = state.copyWith(month: month);
 
-  void clearDates() => state = state.copyWith(clearFrom: true, clearTo: true);
-
-  /// Drop the text and dates, keeping the current tab.
+  /// Drop the text, keeping the current tab and month.
   void clear() => state = state.cleared();
 }
 
@@ -139,24 +110,14 @@ final orderFilterProvider = NotifierProvider<OrderFilterNotifier, OrderFilter>(
 
 /// Server-side filtered orders for one [OrderFilter].
 ///
-/// With no filter applied this reuses the plain active/past providers, so a
-/// cleared search box hits the cache the rest of the app already warmed rather
-/// than firing a redundant request.
-///
-/// Note it calls [_refreshOnOrderEvents] too — without that, live status
-/// pushes would stop updating the list the moment a search was active.
+/// Always hits the server with the month window; the unfiltered
+/// active/past providers above stay for Home, which is not filtered.
+/// It calls [_refreshOnOrderEvents] too, so live status pushes keep the list
+/// current.
 final searchedOrdersProvider = FutureProvider.family<List<Order>, OrderFilter>((
   ref,
   filter,
-) async {
-  if (!filter.isActive) {
-    return ref.watch(
-      filter.type == 'past'
-          ? pastOrdersProvider.future
-          : activeOrdersProvider.future,
-    );
-  }
-
+) {
   _refreshOnOrderEvents(ref);
   return ref
       .read(clientApiProvider)
