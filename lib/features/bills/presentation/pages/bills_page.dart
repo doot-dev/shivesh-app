@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/providers/access_provider.dart';
 import '../../../../core/providers/client_api_provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/links.dart';
+import '../../../../core/widgets/file_viewer.dart';
 import '../../../../core/widgets/animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/widgets/month_bar.dart';
@@ -437,17 +437,11 @@ class _BillCard extends ConsumerWidget {
       fontSize: 11,
     );
 
-    Future<void> openInvoice() async {
-      final ok = await openServerLink(
-        ref,
-        ref.read(clientApiProvider).invoicePath(bill.billNo),
-      );
-      if (!ok && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the invoice')),
-        );
-      }
-    }
+    void openInvoice() => openServerFile(
+      context,
+      ref.read(clientApiProvider).invoicePath(bill.billNo),
+      title: 'Invoice ${bill.billNo}',
+    );
 
     return AppCard(
       onTap: openInvoice,

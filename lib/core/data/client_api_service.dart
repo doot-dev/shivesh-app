@@ -172,7 +172,7 @@ class ClientApiService {
         .toList();
   }
 
-  /// Path for the invoice PDF — opened with openServerLink (token in the URL).
+  /// Path for the invoice PDF — opened in the app with openServerFile.
   String invoicePath(String billNo) => '$_base/bills/$billNo/invoice';
 
   // ─── Order actions (D15, D18) ──────────────────────────────────────────

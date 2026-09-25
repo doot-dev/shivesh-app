@@ -11,7 +11,7 @@ import '../../../auth/providers/auth_providers.dart';
 import '../../data/models/order_models.dart';
 import '../../providers/live_order_provider.dart';
 import '../../../../core/providers/client_api_provider.dart';
-import '../../../../core/utils/links.dart';
+import '../../../../core/widgets/file_viewer.dart';
 import 'package:dio/dio.dart';
 
 /// Order details + live updates on ONE screen.
@@ -735,7 +735,11 @@ class _TmCard extends ConsumerWidget {
                     child: SizedBox(
                       height: 32,
                       child: OutlinedButton(
-                        onPressed: () => openServerLink(ref, tm.challanUrl!),
+                        onPressed: () => openServerFile(
+                          context,
+                          tm.challanUrl!,
+                          title: 'Challan ${tm.challanNo}',
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: EdgeInsets.zero,
                           side: const BorderSide(color: AppColors.primary),

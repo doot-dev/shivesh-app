@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
+import '../../../../core/widgets/file_viewer.dart';
 import '../../../../core/widgets/month_bar.dart';
 import '../../../orders/presentation/widgets/order_search_bar.dart';
 import '../../data/models/cube_test_model.dart';
@@ -390,41 +391,52 @@ class _CubeTestCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: t.hasFile ? AppColors.infoBg : AppColors.background,
-              borderRadius: BorderRadius.circular(AppStyles.radiusMd),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  t.hasFile
-                      ? Icons.description_rounded
-                      : Icons.hourglass_empty_rounded,
-                  size: 17,
-                  color: t.hasFile ? AppColors.primary : AppColors.textMuted,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
+          GestureDetector(
+            onTap: t.hasFile
+                ? () => openServerFile(
+                    context,
+                    t.fileUrl!,
+                    title: 'Cube test report',
+                  )
+                : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: t.hasFile ? AppColors.infoBg : AppColors.background,
+                borderRadius: BorderRadius.circular(AppStyles.radiusMd),
+              ),
+              child: Row(
+                children: [
+                  Icon(
                     t.hasFile
-                        ? 'Report sheet attached'
-                        : 'Report sheet not uploaded yet',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: t.hasFile
-                          ? AppColors.primary
-                          : AppColors.textMuted,
-                      fontWeight: t.hasFile ? FontWeight.w700 : FontWeight.w500,
+                        ? Icons.description_rounded
+                        : Icons.hourglass_empty_rounded,
+                    size: 17,
+                    color: t.hasFile ? AppColors.primary : AppColors.textMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      t.hasFile
+                          ? 'View report sheet'
+                          : 'Report sheet not uploaded yet',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: t.hasFile
+                            ? AppColors.primary
+                            : AppColors.textMuted,
+                        fontWeight: t.hasFile
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: AppColors.textMuted,
-                ),
-              ],
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
