@@ -344,53 +344,42 @@ class _CubeTestCard extends StatelessWidget {
               _DuePill(test: t),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: InfoCell(
-                  label: 'Casting date',
-                  value: t.castingDateLabel,
-                  icon: Icons.event_outlined,
-                ),
-              ),
-              Expanded(
-                child: InfoCell(
-                  label: 'Testing date',
-                  value: t.testDateLabel,
-                  icon: Icons.science_outlined,
-                ),
-              ),
-            ],
+          // Same rows, same order as the field app's cube test card.
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: AppColors.border),
+          DetailRow(
+            icon: Icons.timelapse_rounded,
+            label: 'Period',
+            value: t.period.label,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: InfoCell(
-                  label: 'Quantity',
-                  value: t.quantity.isEmpty ? '—' : t.quantity,
-                  icon: Icons.scale_outlined,
-                ),
-              ),
-              Expanded(
-                child: InfoCell(
-                  label: 'Period',
-                  value: t.period.label,
-                  icon: Icons.timelapse_rounded,
-                ),
-              ),
-            ],
+          DetailRow(
+            icon: Icons.event_outlined,
+            label: 'Casting date',
+            value: t.castingDateLabel,
           ),
-          if (t.addedAtLabel.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            InfoCell(
+          DetailRow(
+            icon: Icons.science_outlined,
+            label: 'Testing date',
+            value: t.testDateLabel,
+          ),
+          DetailRow(
+            icon: Icons.scale_outlined,
+            label: 'Quantity',
+            value: t.quantity,
+          ),
+          if (entry.productLabel.isNotEmpty)
+            DetailRow(
+              icon: Icons.inventory_2_outlined,
+              label: 'Product',
+              value: entry.productLabel,
+            ),
+          if (t.addedAtLabel.isNotEmpty)
+            DetailRow(
+              icon: Icons.schedule_rounded,
               label: 'Added on',
               value: t.addedAtLabel,
-              icon: Icons.schedule_rounded,
             ),
-          ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           GestureDetector(
             onTap: t.hasFile
                 ? () => openServerFile(
@@ -417,9 +406,7 @@ class _CubeTestCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      t.hasFile
-                          ? 'View report sheet'
-                          : 'Report sheet not uploaded yet',
+                      t.hasFile ? 'View report' : 'No report attached yet',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: t.hasFile
                             ? AppColors.primary

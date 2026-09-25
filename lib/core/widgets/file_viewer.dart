@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfx/pdfx.dart';
 
@@ -16,7 +15,7 @@ Future<void> openServerFile(
   BuildContext context,
   String path, {
   required String title,
-}) => Navigator.of(context).push(
+}) => Navigator.of(context, rootNavigator: true).push(
   MaterialPageRoute(
     builder: (_) => FileViewerPage(path: path, title: title),
   ),
@@ -103,6 +102,13 @@ class _FileViewerPageState extends ConsumerState<FileViewerPage> {
     return Scaffold(
       backgroundColor: image != null ? Colors.black : const Color(0xFFEEF1F6),
       appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        // The app theme pins a dark title colour; this bar is navy.
+        titleTextStyle: Theme.of(
+          context,
+        ).appBarTheme.titleTextStyle?.copyWith(color: Colors.white),
         title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           if (pdf != null)
