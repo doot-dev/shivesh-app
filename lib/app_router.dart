@@ -10,7 +10,10 @@ import 'features/auth/providers/auth_providers.dart';
 import 'features/common/presentation/widgets/main_scaffold.dart';
 import 'features/common/presentation/pages/splash_page.dart';
 import 'features/create_order/presentation/pages/create_order_page.dart';
+import 'features/cube_test/data/models/cube_test_model.dart';
+import 'features/cube_test/presentation/pages/cube_test_form_page.dart';
 import 'features/cube_test/presentation/pages/cube_tests_page.dart';
+import 'features/cube_test/presentation/pages/order_cube_tests_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
 import 'features/home/presentation/pages/project_detail_page.dart';
 import 'features/notifications/presentation/pages/notifications_page.dart';
@@ -106,6 +109,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _slidePage(
           state,
           OrderDetailsPage(orderId: state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/orders/:id/cube-tests',
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          OrderCubeTestsPage(orderId: state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/orders/:id/cube-tests/add',
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          CubeTestFormPage(orderId: state.pathParameters['id']!),
+        ),
+      ),
+      // extra: the CubeTest being edited.
+      GoRoute(
+        path: '/orders/:id/cube-tests/edit',
+        pageBuilder: (context, state) => _slidePage(
+          state,
+          CubeTestFormPage(
+            orderId: state.pathParameters['id']!,
+            test: state.extra as CubeTest?,
+          ),
         ),
       ),
       GoRoute(

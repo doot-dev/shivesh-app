@@ -12,7 +12,9 @@ import '../../data/models/order_models.dart';
 import '../../providers/live_order_provider.dart';
 import '../../../../core/providers/client_api_provider.dart';
 import '../../../../core/widgets/file_viewer.dart';
+import '../../../cube_test/presentation/pages/order_cube_tests_page.dart';
 import 'package:dio/dio.dart';
+import 'package:go_router/go_router.dart';
 
 /// Order details + live updates on ONE screen.
 ///
@@ -204,6 +206,14 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                         ),
                       ),
 
+                      if (ref.can('cubeTests.view'))
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: _CubeTestsEntry(orderId: widget.orderId),
+                          ),
+                        ),
+
                       // D15: cancel directly until the order is dispatched.
                       if (order.canClientCancel && ref.can('orders.cancel'))
                         SliverToBoxAdapter(
@@ -327,6 +337,56 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
               sending: _sendingComment,
               onSend: _sendComment,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Entry to this order's cube test reports, as in the field app.
+///
+/// ponytail: shown on every order — the order payload has no isConcrete flag,
+/// and the server refuses a cube test on a non-concrete product with its own
+/// message. Hide it here if the order ever carries the flag.
+class _CubeTestsEntry extends ConsumerWidget {
+  const _CubeTestsEntry({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return AppCard(
+      onTap: () => context.push('/orders/$orderId/cube-tests'),
+      child: Row(
+        children: [
+          const CubeIcon(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cube test reports',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  ref.can('cubeTests.manage')
+                      ? 'Log casting details and attach results'
+                      : 'Casting details and result files',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
         ],
       ),
     );

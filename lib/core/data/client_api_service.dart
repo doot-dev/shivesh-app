@@ -112,8 +112,7 @@ class ClientApiService {
 
   /// Every cube testing report across ALL of this client's orders.
   ///
-  /// Read-only — technicians and admins log the tests, the client views the
-  /// results. [status] is `due` (test date reached) or `upcoming`;
+  /// [status] is `due` (test date reached) or `upcoming`;
   /// [dateFrom]/[dateTo] filter the CASTING date and must be ISO `yyyy-MM-dd`,
   /// since the backend ignores any other format rather than erroring. Blank
   /// values are omitted so an empty search behaves like no filter.
@@ -137,6 +136,52 @@ class ClientApiService {
     return data
         .map((e) => CubeTestEntry.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// One order's cube tests (cubeTests.view). [orderId] is the order code.
+  Future<List<CubeTest>> getOrderCubeTests(String orderId) async {
+    final res = await _dio.get('$_base/orders/$orderId/cube-test');
+    return (res.data['data'] as List<dynamic>)
+        .map((e) => CubeTest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Log a cube test ([cubeTestId] null → POST) or edit one (PUT), needs
+  /// cubeTests.manage. [fields] are castingDate / customDate (`yyyy-MM-dd`),
+  /// quantity and period; an edit sends only what changed. Every file is
+  /// ADDED as a new attachment (up to 10 per request, jpg/png/pdf, 10 MB).
+  Future<CubeTest> saveCubeTest(
+    String orderId, {
+    String? cubeTestId,
+    Map<String, String> fields = const {},
+    List<({String path, String name})> files = const [],
+  }) async {
+    final form = FormData.fromMap(fields);
+    for (final f in files) {
+      form.files.add(
+        MapEntry(
+          'files',
+          await MultipartFile.fromFile(f.path, filename: f.name),
+        ),
+      );
+    }
+    final path = '$_base/orders/$orderId/cube-test';
+    final res = cubeTestId == null
+        ? await _dio.post(path, data: form)
+        : await _dio.put('$path/$cubeTestId', data: form);
+    return CubeTest.fromJson(res.data['data'] as Map<String, dynamic>);
+  }
+
+  /// Remove one file. The server allows it only for files a client contact
+  /// added (403 ROLE_FORBIDDEN otherwise).
+  Future<void> deleteCubeTestAttachment(
+    String orderId,
+    String cubeTestId,
+    String attachmentId,
+  ) async {
+    await _dio.delete(
+      '$_base/orders/$orderId/cube-test/$cubeTestId/attachments/$attachmentId',
+    );
   }
 
   // ─── Money (P1.14, P1.16) ───────────────────────────────────────────────

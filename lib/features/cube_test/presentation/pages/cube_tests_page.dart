@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/providers/access_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/animations.dart';
 import '../../../../core/widgets/app_widgets.dart';
-import '../../../../core/widgets/file_viewer.dart';
 import '../../../../core/widgets/month_bar.dart';
 import '../../../orders/presentation/widgets/order_search_bar.dart';
 import '../../data/models/cube_test_model.dart';
 import '../../providers/cube_test_providers.dart';
+import 'order_cube_tests_page.dart';
 
 /// Every cube testing report across all of this client's orders.
 ///
-/// A bottom-nav destination, so it deliberately has NO back button. Read-only:
-/// technicians and admins log the tests, the client sees the results and the
-/// attached report sheets.
+/// A bottom-nav destination, so it deliberately has NO back button. A card
+/// opens that order's cube tests ([OrderCubeTestsPage]), where Owners and Site
+/// Engineers (cubeTests.manage) log and edit tests; they can add files here too.
 ///
 /// All filtering is server-side (see `allCubeTestsProvider`); the search box,
 /// casting month and status chips write into one shared [CubeTestFilter] which
@@ -149,8 +150,8 @@ class _CubeTestsPageState extends ConsumerState<CubeTestsPage> {
                         : 'No cube tests in ${monthLabel(filter.month)}',
                     message: filter.isActive
                         ? 'Try a different search, status or month.'
-                        : 'Reports show here by casting date once our team '
-                              'logs them. Use ‹ › to see another month.',
+                        : 'Reports show here by casting date once a test is '
+                              'logged. Use ‹ › to see another month.',
                   );
                 }
                 return RefreshIndicator(
@@ -277,39 +278,28 @@ class _FilterSummary extends StatelessWidget {
   }
 }
 
-/// One report. Tapping opens the order it belongs to.
-class _CubeTestCard extends StatelessWidget {
+/// One report. Tapping opens that order's cube tests, like the field app.
+class _CubeTestCard extends ConsumerWidget {
   const _CubeTestCard({required this.entry});
 
   final CubeTestEntry entry;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final t = entry.test;
+    final canManage = ref.can('cubeTests.manage') && entry.orderId.isNotEmpty;
 
     return AppCard(
       onTap: entry.orderId.isEmpty
           ? null
-          : () => context.push('/orders/${entry.orderId}'),
+          : () => context.push('/orders/${entry.orderId}/cube-tests'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.infoBg,
-                  borderRadius: BorderRadius.circular(AppStyles.radiusMd),
-                ),
-                child: const Icon(
-                  Icons.science_rounded,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-              ),
+              const CubeIcon(),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -341,113 +331,22 @@ class _CubeTestCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _DuePill(test: t),
+              CubeDueBadge(test: t),
             ],
           ),
           // Same rows, same order as the field app's cube test card.
           const SizedBox(height: 8),
           const Divider(height: 1, color: AppColors.border),
-          DetailRow(
-            icon: Icons.timelapse_rounded,
-            label: 'Period',
-            value: t.period.label,
-          ),
-          DetailRow(
-            icon: Icons.event_outlined,
-            label: 'Casting date',
-            value: t.castingDateLabel,
-          ),
-          DetailRow(
-            icon: Icons.science_outlined,
-            label: 'Testing date',
-            value: t.testDateLabel,
-          ),
-          DetailRow(
-            icon: Icons.scale_outlined,
-            label: 'Quantity',
-            value: t.quantity,
-          ),
-          if (entry.productLabel.isNotEmpty)
-            DetailRow(
-              icon: Icons.inventory_2_outlined,
-              label: 'Product',
-              value: entry.productLabel,
-            ),
-          if (t.addedAtLabel.isNotEmpty)
-            DetailRow(
-              icon: Icons.schedule_rounded,
-              label: 'Added on',
-              value: t.addedAtLabel,
-            ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: t.hasFile
-                ? () => openServerFile(
-                    context,
-                    t.fileUrl!,
-                    title: 'Cube test report',
-                  )
-                : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: t.hasFile ? AppColors.infoBg : AppColors.background,
-                borderRadius: BorderRadius.circular(AppStyles.radiusMd),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    t.hasFile
-                        ? Icons.description_rounded
-                        : Icons.hourglass_empty_rounded,
-                    size: 17,
-                    color: t.hasFile ? AppColors.primary : AppColors.textMuted,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      t.hasFile ? 'View report' : 'No report attached yet',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: t.hasFile
-                            ? AppColors.primary
-                            : AppColors.textMuted,
-                        fontWeight: t.hasFile
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: AppColors.textMuted,
-                  ),
-                ],
-              ),
-            ),
+          CubeTestRows(test: t, product: entry.productLabel),
+          const SizedBox(height: 10),
+          CubeTestFiles(
+            orderId: entry.orderId,
+            test: t,
+            canAdd: canManage,
+            canRemove: canManage,
           ),
         ],
       ),
     );
-  }
-}
-
-/// Whether the scheduled test date has arrived.
-class _DuePill extends StatelessWidget {
-  const _DuePill({required this.test});
-
-  final CubeTest test;
-
-  @override
-  Widget build(BuildContext context) {
-    final days = test.daysUntilDue;
-
-    if (days > 0) {
-      return StatusBadge('in $days day${days == 1 ? '' : 's'}');
-    }
-    if (days == 0) {
-      return const StatusBadge('Due today', tone: Tone.warn);
-    }
-    return const StatusBadge('Tested', tone: Tone.ok);
   }
 }

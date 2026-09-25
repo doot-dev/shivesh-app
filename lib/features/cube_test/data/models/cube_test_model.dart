@@ -2,9 +2,9 @@ import 'package:intl/intl.dart';
 
 /// Testing period for a concrete cube sample.
 ///
-/// Wire values are the backend's `CubeTestPeriod` enum. The client app is
-/// READ-ONLY for cube tests — technicians and admins create them — so this only
-/// ever parses [fromApi], never sends.
+/// Wire values are the backend's `CubeTestPeriod` enum — send [apiValue],
+/// never `.name`. A standard period means the test date is castingDate + N
+/// days; [custom] is the date of a test that already happened.
 enum CubeTestPeriod {
   sevenDays,
   fourteenDays,
@@ -14,7 +14,35 @@ enum CubeTestPeriod {
   custom,
 }
 
+/// D21: what the form offers for NEW tests. 14 and 21 days stay in the enum
+/// only so older records still parse and show a label.
+const selectableCubeTestPeriods = [
+  CubeTestPeriod.sevenDays,
+  CubeTestPeriod.fifteenDays,
+  CubeTestPeriod.twentyEightDays,
+  CubeTestPeriod.custom,
+];
+
 extension CubeTestPeriodX on CubeTestPeriod {
+  String get apiValue => switch (this) {
+    CubeTestPeriod.sevenDays => 'SEVEN_DAYS',
+    CubeTestPeriod.fourteenDays => 'FOURTEEN_DAYS',
+    CubeTestPeriod.fifteenDays => 'FIFTEEN_DAYS',
+    CubeTestPeriod.twentyOneDays => 'TWENTYONE_DAYS',
+    CubeTestPeriod.twentyEightDays => 'TWENTYEIGHT_DAYS',
+    CubeTestPeriod.custom => 'CUSTOM',
+  };
+
+  /// Days added to the casting date. Null for [custom], which has no offset.
+  int? get days => switch (this) {
+    CubeTestPeriod.sevenDays => 7,
+    CubeTestPeriod.fourteenDays => 14,
+    CubeTestPeriod.fifteenDays => 15,
+    CubeTestPeriod.twentyOneDays => 21,
+    CubeTestPeriod.twentyEightDays => 28,
+    CubeTestPeriod.custom => null,
+  };
+
   String get label {
     switch (this) {
       case CubeTestPeriod.sevenDays:
@@ -54,6 +82,62 @@ extension CubeTestPeriodX on CubeTestPeriod {
 final _dateFmt = DateFormat('dd MMM yyyy');
 final _dateTimeFmt = DateFormat('dd MMM yyyy, h:mm a');
 
+/// Who logged a test or added a file: the person's name, else the kind of
+/// party (`addedByType` is USER, FIELD_TECH, CLIENT_CONTACT or SYSTEM).
+String _addedByLabel(String? name, String? type) {
+  if (name != null && name.isNotEmpty) return name;
+  return switch (type) {
+    'CLIENT_CONTACT' => 'Your team',
+    'FIELD_TECH' => 'Field technician',
+    'USER' || 'SYSTEM' => 'Shivesh office',
+    _ => '',
+  };
+}
+
+/// One result sheet or photo on a cube test. A test has any number, added at
+/// any time.
+class CubeTestAttachment {
+  const CubeTestAttachment({
+    required this.id,
+    required this.fileUrl,
+    this.fileName,
+    this.addedByType,
+    this.addedByName,
+    this.createdAt,
+  });
+
+  final String id;
+
+  /// Server-relative `/uploads/cube-tests/...` path, opened with openServerFile.
+  final String fileUrl;
+  final String? fileName;
+  final String? addedByType;
+  final String? addedByName;
+  final DateTime? createdAt;
+
+  /// The server lets a client remove only files a client contact added.
+  bool get addedByClient => addedByType == 'CLIENT_CONTACT';
+
+  String get displayName =>
+      (fileName ?? '').isNotEmpty ? fileName! : fileUrl.split('/').last;
+
+  /// "Rakesh Pawar · 12 Sep 2026, 1:48 PM".
+  String get subtitle => [
+    _addedByLabel(addedByName, addedByType),
+    if (createdAt != null) _dateTimeFmt.format(createdAt!),
+  ].where((s) => s.isNotEmpty).join(' · ');
+
+  factory CubeTestAttachment.fromJson(Map<String, dynamic> json) =>
+      CubeTestAttachment(
+        id: json['id']?.toString() ?? '',
+        fileUrl: json['fileUrl'] as String? ?? '',
+        fileName: json['fileName'] as String?,
+        addedByType: json['addedByType'] as String?,
+        addedByName: json['addedByName'] as String?,
+        createdAt: CubeTest._parseNullableDate(json['createdAt']),
+      );
+}
+
 /// One cube testing report on one of this client's orders.
 ///
 /// [createdAt] is when the report was SUBMITTED, which is not [castingDate].
@@ -68,6 +152,9 @@ class CubeTest {
     required this.toDate,
     this.fileUrl,
     this.createdAt,
+    this.attachments = const [],
+    this.addedByType,
+    this.addedByName,
   });
 
   final String id;
@@ -78,15 +165,25 @@ class CubeTest {
   /// The date the cube is/was tested.
   final DateTime toDate;
 
-  /// Server-relative path of the result sheet, e.g.
-  /// `/uploads/cube-tests/ORD-2025-0001/report.pdf`. Needs the API base URL
-  /// prefixed before it can be opened.
+  /// The newest attachment's path (legacy single-file field; the server keeps
+  /// it in step with [attachments]).
   final String? fileUrl;
+
+  /// Result sheets and photos, oldest first.
+  final List<CubeTestAttachment> attachments;
+
+  /// Who logged the test: USER, FIELD_TECH or CLIENT_CONTACT (null on old rows).
+  final String? addedByType;
+  final String? addedByName;
+
+  /// "Rakesh Pawar", or the kind of party when the name is unknown.
+  String get addedByLabel => _addedByLabel(addedByName, addedByType);
 
   /// When this report was submitted (server time). Null on older rows.
   final DateTime? createdAt;
 
-  bool get hasFile => fileUrl != null && fileUrl!.isNotEmpty;
+  bool get hasFile =>
+      attachments.isNotEmpty || (fileUrl != null && fileUrl!.isNotEmpty);
 
   String get castingDateLabel => _dateFmt.format(castingDate);
   String get testDateLabel => _dateFmt.format(toDate);
@@ -119,21 +216,32 @@ class CubeTest {
     return null;
   }
 
-  factory CubeTest.fromJson(Map<String, dynamic> json) => CubeTest(
-    id: json['id'] as String? ?? '',
-    castingDate: _parseDate(json['castingDate']),
-    quantity: json['quantity']?.toString() ?? '',
-    period: CubeTestPeriodX.fromApi(json['period'] as String?),
-    toDate: _parseDate(json['toDate']),
-    fileUrl: json['fileUrl'] as String?,
-    createdAt: _parseNullableDate(json['createdAt']),
-  );
+  factory CubeTest.fromJson(Map<String, dynamic> json) {
+    final fileUrl = json['fileUrl'] as String?;
+    final attachments = ((json['attachments'] as List?) ?? const [])
+        .map((a) => CubeTestAttachment.fromJson(a as Map<String, dynamic>))
+        .toList();
+    return CubeTest(
+      id: json['id'] as String? ?? '',
+      castingDate: _parseDate(json['castingDate']),
+      quantity: json['quantity']?.toString() ?? '',
+      period: CubeTestPeriodX.fromApi(json['period'] as String?),
+      toDate: _parseDate(json['toDate']),
+      fileUrl: fileUrl,
+      createdAt: _parseNullableDate(json['createdAt']),
+      // An offline copy saved before attachments existed has only fileUrl.
+      attachments: attachments.isEmpty && (fileUrl ?? '').isNotEmpty
+          ? [CubeTestAttachment(id: '', fileUrl: fileUrl!)]
+          : attachments,
+      addedByType: json['addedByType'] as String?,
+      addedByName: json['addedByName'] as String?,
+    );
+  }
 }
 
 /// A cube test plus the order/project labels the backend flattens onto it.
 ///
-/// The client app only ever shows cube tests in one cross-order list, so this
-/// — not bare [CubeTest] — is what the UI renders. `clientName` is deliberately
+/// What the cross-order Cube tests tab renders. `clientName` is deliberately
 /// not carried: every row already belongs to the signed-in client.
 class CubeTestEntry {
   const CubeTestEntry({
@@ -147,7 +255,7 @@ class CubeTestEntry {
 
   final CubeTest test;
 
-  /// Human order code (ORD-2025-0001) — used to open the order screen.
+  /// Human order code (ORD-2025-0001) — used to open the order's cube tests.
   final String orderId;
 
   final String? productName;

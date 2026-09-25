@@ -128,3 +128,17 @@ final allCubeTestsProvider =
             status: filter.status.apiValue,
           );
     });
+
+/// One order's cube tests with their attachments, newest first. Keyed by the
+/// order code (ORD-2026-0001).
+final orderCubeTestsProvider = FutureProvider.family<List<CubeTest>, String>(
+  (ref, orderId) => ref.read(clientApiProvider).getOrderCubeTests(orderId),
+);
+
+/// After any save or file removal: the order's list and every month/filter of
+/// the tab feed, so both show the change. Takes the container (read before the
+/// request's await) because the screen may be gone when the upload finishes.
+void refreshCubeTests(ProviderContainer container, String orderId) {
+  container.invalidate(orderCubeTestsProvider(orderId));
+  container.invalidate(allCubeTestsProvider);
+}
