@@ -340,22 +340,29 @@ class _CubeTestFilesState extends ConsumerState<CubeTestFiles> {
       children: [
         Row(
           children: [
-            Flexible(
-              child: Text(
-                'Files',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+            // One Expanded (not Flexible + Spacer, which split the space and
+            // left "Add files" mid-row on wide screens).
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Files',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  if (files.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    CountBubble(files.length),
+                  ],
+                ],
               ),
             ),
-            if (files.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              CountBubble(files.length),
-            ],
-            const Spacer(),
             if (_busy)
               const Padding(
                 padding: EdgeInsets.all(10),
