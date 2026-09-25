@@ -155,6 +155,13 @@ class ClientApiService {
         .toList();
   }
 
+  Future<List<LedgerRow>> getLedger() async {
+    final res = await _dio.get('$_base/ledger');
+    return (res.data['data'] as List<dynamic>)
+        .map((r) => LedgerRow.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Path for the invoice PDF — opened with openServerLink (token in the URL).
   String invoicePath(String billNo) => '$_base/bills/$billNo/invoice';
 

@@ -12,7 +12,15 @@ class CreditPosition {
     this.creditDays,
     this.nextDueDate,
     this.daysLeft,
+    this.extraUnused = 0,
+    this.extraInUse = 0,
+    this.advance = 0,
   });
+
+  /// W35 one-time extra credit, and money paid but not yet adjusted (D17).
+  final double extraUnused;
+  final double extraInUse;
+  final double advance;
 
   final double limit;
   final double used;
@@ -40,8 +48,13 @@ class CreditPosition {
     overdueAmount: _d(j['overdueAmount']),
     flag: j['flag'] as String? ?? 'OK',
     creditDays: (j['creditDays'] as num?)?.toInt(),
-    nextDueDate: j['nextDueDate'] != null ? DateTime.tryParse(j['nextDueDate'] as String) : null,
+    nextDueDate: j['nextDueDate'] != null
+        ? DateTime.tryParse(j['nextDueDate'] as String)
+        : null,
     daysLeft: (j['daysLeft'] as num?)?.toInt(),
+    extraUnused: _d(j['extraUnused']),
+    extraInUse: _d(j['extraInUse']),
+    advance: _d(j['advance']),
   );
 }
 
@@ -57,7 +70,12 @@ class ClientBill {
     this.issueDate,
     this.dueDate,
     this.daysOverdue = 0,
+    this.paid = 0,
+    this.balance = 0,
   });
+
+  final double paid;
+  final double balance;
 
   final String billNo;
   final double amount;
@@ -77,11 +95,52 @@ class ClientBill {
       amount: (j['amount'] as num?)?.toDouble() ?? 0,
       status: j['status'] as String? ?? '',
       orderId: order['orderId'] as String? ?? '',
-      product: '${order['productName'] ?? ''} ${order['productGrade'] ?? ''}'.trim(),
+      product: '${order['productName'] ?? ''} ${order['productGrade'] ?? ''}'
+          .trim(),
       projectName: project['projectName'] as String? ?? '',
-      issueDate: j['issueDate'] != null ? DateTime.tryParse(j['issueDate'] as String) : null,
-      dueDate: j['dueDate'] != null ? DateTime.tryParse(j['dueDate'] as String) : null,
+      issueDate: j['issueDate'] != null
+          ? DateTime.tryParse(j['issueDate'] as String)
+          : null,
+      dueDate: j['dueDate'] != null
+          ? DateTime.tryParse(j['dueDate'] as String)
+          : null,
       daysOverdue: (j['daysOverdue'] as num?)?.toInt() ?? 0,
+      paid: (j['paid'] as num?)?.toDouble() ?? 0,
+      balance:
+          (j['balance'] as num?)?.toDouble() ??
+          (j['amount'] as num?)?.toDouble() ??
+          0,
     );
   }
+}
+
+/// One ledger row: a bill (debit) or a payment (credit), with running balance.
+class LedgerRow {
+  const LedgerRow({
+    required this.date,
+    required this.type,
+    required this.ref,
+    required this.detail,
+    required this.debit,
+    required this.credit,
+    required this.balance,
+  });
+
+  final DateTime? date;
+  final String type;
+  final String ref;
+  final String detail;
+  final double debit;
+  final double credit;
+  final double balance;
+
+  factory LedgerRow.fromJson(Map<String, dynamic> j) => LedgerRow(
+    date: j['date'] != null ? DateTime.tryParse(j['date'] as String) : null,
+    type: j['type'] as String? ?? '',
+    ref: j['ref'] as String? ?? '',
+    detail: j['detail'] as String? ?? '',
+    debit: (j['debit'] as num?)?.toDouble() ?? 0,
+    credit: (j['credit'] as num?)?.toDouble() ?? 0,
+    balance: (j['balance'] as num?)?.toDouble() ?? 0,
+  );
 }

@@ -8,6 +8,11 @@ final creditProvider = FutureProvider.autoDispose<CreditPosition>((ref) {
   return ref.read(clientApiProvider).getCredit();
 });
 
+/// Statement: bills and payments with a running balance (Phase 2).
+final ledgerProvider = FutureProvider.autoDispose<List<LedgerRow>>((ref) {
+  return ref.read(clientApiProvider).getLedger();
+});
+
 /// The client's issued bills (P1.16).
 final billsProvider = FutureProvider.autoDispose<List<ClientBill>>((ref) {
   return ref.read(clientApiProvider).getBills();

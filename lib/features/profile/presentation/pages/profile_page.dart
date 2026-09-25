@@ -349,10 +349,14 @@ class _LiveCreditCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               c.limit > 0
-                  ? 'Used ${inr(c.used)} of ${inr(c.limit)} · available ${inr(c.available)}'
+                  ? 'Used ${inr(c.used)} of ${inr(c.limit + c.extraUnused + c.extraInUse)} · available ${inr(c.available)}'
                   : 'Credit limit not set',
               style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
             ),
+            if (c.extraUnused > 0 || c.extraInUse > 0)
+              Text('Includes extra credit ${inr(c.extraUnused)} unused${c.extraInUse > 0 ? ' · ${inr(c.extraInUse)} in use' : ''}', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+            if (c.advance > 0)
+              Text('Advance with Shivesh: ${inr(c.advance)}', style: theme.textTheme.bodySmall?.copyWith(color: Colors.green)),
             if (c.daysLeft != null)
               Text('Next payment due in ${c.daysLeft} days', style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
           ],
