@@ -138,9 +138,6 @@ class HomePage extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: _NewOrderFab(
-        onPressed: () => context.push('/create-order'),
-      ),
     );
   }
 }
@@ -201,7 +198,7 @@ class _HomeHeader extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const BrandLogo.onDark(height: 34),
+                        const BrandLogo.onDark(height: 52),
                         const _NotificationBell(),
                       ],
                     ),
@@ -248,6 +245,15 @@ class _HomeHeader extends StatelessWidget {
                             value: projectCount,
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Up front so booking is one tap from home (the old
+                    // floating button sat under the bottom bar).
+                    FadeSlideIn(
+                      index: 2,
+                      child: _NewOrderButton(
+                        onPressed: () => context.push('/create-order'),
                       ),
                     ),
                   ],
@@ -349,8 +355,8 @@ class _NotificationBell extends StatelessWidget {
 }
 
 /// Gradient FAB with a label — more discoverable than a bare "+".
-class _NewOrderFab extends StatelessWidget {
-  const _NewOrderFab({required this.onPressed});
+class _NewOrderButton extends StatelessWidget {
+  const _NewOrderButton({required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -359,22 +365,23 @@ class _NewOrderFab extends StatelessWidget {
     return PressableScale(
       onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          gradient: AppColors.brandGradient,
-          borderRadius: BorderRadius.circular(999),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppStyles.radiusLg),
           boxShadow: AppStyles.raisedShadow,
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add_rounded, color: Colors.white, size: 22),
-            const SizedBox(width: 6),
+            const Icon(Icons.add_circle_rounded, color: AppColors.primary, size: 24),
+            const SizedBox(width: 8),
             Text(
-              'New order',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+              'Create order',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
