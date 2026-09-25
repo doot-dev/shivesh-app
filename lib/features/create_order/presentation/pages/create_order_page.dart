@@ -40,6 +40,30 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _autoPickProject();
+  }
+
+  /// Only one project: pick it, then chain into product and grade.
+  Future<void> _autoPickProject() async {
+    final List<ProjectSummary> projects;
+    try {
+      projects = await ref.read(projectsProvider.future);
+    } catch (_) {
+      return; // the project field already shows the load error
+    }
+    if (!mounted || _selectedProjectId != null || projects.length != 1) return;
+    final project = projects.single;
+    setState(() {
+      _selectedProjectName = project.name;
+      _selectedProjectId = project.id;
+    });
+    _projectFieldKey.currentState?.didChange(project.name);
+    _autoPick(project.id);
+  }
+
+  @override
   void dispose() {
     _quantityController.dispose();
     super.dispose();
@@ -129,9 +153,39 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
           _productFieldKey.currentState?.didChange(null);
           _gradeFieldKey.currentState?.didChange(null);
         });
+        _autoPick(project.id);
       },
       fieldKey: _projectFieldKey,
     );
+  }
+
+  /// Fills product, then grade, when the project leaves only one option.
+  /// Never overrides a pick already made; both fields stay changeable.
+  Future<void> _autoPick(String projectId) async {
+    final List<ProjectProduct> items;
+    try {
+      items = await ref.read(projectProductsProvider(projectId).future);
+    } catch (_) {
+      return; // the product field already shows the load error
+    }
+    if (!mounted || _selectedProjectId != projectId) return;
+
+    final products = items.map((p) => p.productName).toSet();
+    final product =
+        _selectedProduct ?? (products.length == 1 ? products.single : null);
+    final grades = items
+        .where((p) => p.productName == product)
+        .map((p) => p.productGrade)
+        .toSet();
+    final grade =
+        _selectedGrade ?? (grades.length == 1 ? grades.single : null);
+
+    setState(() {
+      _selectedProduct = product;
+      _selectedGrade = grade;
+    });
+    _productFieldKey.currentState?.didChange(product);
+    _gradeFieldKey.currentState?.didChange(grade);
   }
 
   Future<void> _selectProduct(List<String> products) async {
@@ -139,13 +193,15 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
       title: 'Select Product',
       items: products,
       currentValue: _selectedProduct,
-      onSelected: (v) => setState(() {
-        if (v != _selectedProduct) {
+      onSelected: (v) {
+        if (v == _selectedProduct) return;
+        setState(() {
           _selectedProduct = v;
           _selectedGrade = null;
           _gradeFieldKey.currentState?.didChange(null);
-        }
-      }),
+        });
+        _autoPick(_selectedProjectId!);
+      },
       fieldKey: _productFieldKey,
     );
   }
