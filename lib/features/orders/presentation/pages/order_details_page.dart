@@ -279,12 +279,11 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                                   ? 'Add truck'
                                   : null,
                               onAction: _canAddTruck(ref, order)
-                                  ? () => showModalBottomSheet<void>(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      showDragHandle: true,
-                                      builder: (_) => _AddTruckSheet(
-                                        orderId: widget.orderId,
+                                  ? () => Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => _AddTruckPage(
+                                          orderId: widget.orderId,
+                                        ),
                                       ),
                                     )
                                   : null,
@@ -843,7 +842,12 @@ class _TmCard extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             _TmLine(label: 'Truck', value: tm.truckNo),
-            _TmLine(label: 'Qty', value: tm.qty),
+            _TmLine(
+              label: 'Qty',
+              value: tm.isPartRejected
+                  ? '${tm.qty} (−${_num(tm.rejectedQty!)} wasted)'
+                  : tm.qty,
+            ),
             _TmLine(label: 'Challan', value: tm.challanNo),
             _TmLine(label: 'Batch', value: _batchWindow(tm)),
             if (tm.isRejected)
@@ -852,6 +856,15 @@ class _TmCard extends ConsumerWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+              ),
+            if (tm.isPartRejected)
+              Text(
+                'Part rejected${tm.rejectedByType == 'CLIENT' ? ' by you' : ''}: ${tm.rejectionReason ?? ''}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.orange.shade800,
+                ),
               ),
             const Spacer(),
             Row(
@@ -879,7 +892,8 @@ class _TmCard extends ConsumerWidget {
                       ),
                     ),
                   ),
-                if (tm.canClientReject && ref.can('trucks.reject'))
+                if ((tm.canClientReject || tm.canPartReject) &&
+                    ref.can('trucks.reject'))
                   Expanded(
                     child: SizedBox(
                       height: 32,
@@ -900,9 +914,9 @@ class _TmCard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        child: const Text(
-                          'Reject truck',
-                          style: TextStyle(color: Colors.red),
+                        child: Text(
+                          tm.canClientReject ? 'Reject truck' : 'Report waste',
+                          style: const TextStyle(color: Colors.red),
                         ),
                       ),
                     ),
@@ -976,8 +990,12 @@ Future<void> _cancelOrder(
   }
 }
 
+String _num(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
 const _rejectReasons = [
   'Quality / slump not OK',
+  'Wasted / spilled at site',
   'Damaged / segregated',
   'Wrong grade',
   'Too late',
@@ -993,32 +1011,66 @@ Future<void> _rejectTruck(
 ) async {
   var reason = _rejectReasons.first;
   final note = TextEditingController();
+  final qty = TextEditingController();
+  // Whole truck only before the challan; after that just part of it (waste).
+  var part = !tm.canClientReject;
+  final truckQty = double.tryParse(tm.qty.trim()) ?? 0;
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) => AlertDialog(
         title: Text('Reject ${tm.tmNumber}?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'The truck will not be billed. The office will arrange a replacement.',
-            ),
-            const SizedBox(height: 12),
-            DropdownButton<String>(
-              value: reason,
-              isExpanded: true,
-              items: _rejectReasons
-                  .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                  .toList(),
-              onChanged: (v) => setState(() => reason = v ?? reason),
-            ),
-            TextField(
-              controller: note,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (tm.canClientReject && tm.canPartReject) ...[
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Whole truck')),
+                    ButtonSegment(value: true, label: Text('Part of it')),
+                  ],
+                  selected: {part},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (v) => setState(() => part = v.first),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Text(
+                part
+                    ? 'Only the good concrete is billed: ${tm.qty} minus what you enter.'
+                    : 'The truck will not be billed. The office will arrange a replacement.',
+              ),
+              if (part) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: qty,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Wasted / refused qty (CBM)',
+                    helperText: 'Truck carried ${tm.qty}',
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              DropdownButton<String>(
+                value: reason,
+                isExpanded: true,
+                items: _rejectReasons
+                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                    .toList(),
+                onChanged: (v) => setState(() => reason = v ?? reason),
+              ),
+              TextField(
+                controller: note,
+                decoration: const InputDecoration(labelText: 'Note (optional)'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1026,23 +1078,49 @@ Future<void> _rejectTruck(
             child: const Text('Back'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject truck'),
+            onPressed: () {
+              final q = double.tryParse(qty.text.trim()) ?? 0;
+              if (part && !(q > 0 && q < truckQty)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Enter a qty more than 0 and less than ${tm.qty}',
+                    ),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx, true);
+            },
+            child: Text(part ? 'Save' : 'Reject truck'),
           ),
         ],
       ),
     ),
   );
   if (ok != true || !context.mounted) return;
+  final wasted = part ? double.tryParse(qty.text.trim()) : null;
   try {
     await ref
         .read(clientApiProvider)
-        .rejectTruck(orderId, tm.id, reason, note: note.text.trim());
+        .rejectTruck(
+          orderId,
+          tm.id,
+          reason,
+          note: note.text.trim(),
+          rejectedQty: wasted,
+        );
     ref.read(liveOrderProvider(routeOrderId).notifier).refresh();
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${tm.tmNumber} rejected')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasted == null
+                ? '${tm.tmNumber} rejected'
+                : '${_num(wasted)} CBM of ${tm.tmNumber} marked as wasted',
+          ),
+        ),
+      );
     }
   } catch (e) {
     if (context.mounted) {
@@ -1435,15 +1513,15 @@ class _DetailsSkeleton extends StatelessWidget {
 /// The site adds a truck with its challan (trucks.add, 2026-09-29): the same
 /// details as the field app — truck, quantity, challan no., batch start / end
 /// from the challan, dispatch / arrival times and a photo of the challan.
-class _AddTruckSheet extends ConsumerStatefulWidget {
-  const _AddTruckSheet({required this.orderId});
+class _AddTruckPage extends ConsumerStatefulWidget {
+  const _AddTruckPage({required this.orderId});
   final String orderId;
 
   @override
-  ConsumerState<_AddTruckSheet> createState() => _AddTruckSheetState();
+  ConsumerState<_AddTruckPage> createState() => _AddTruckPageState();
 }
 
-class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
+class _AddTruckPageState extends ConsumerState<_AddTruckPage> {
   final _truck = TextEditingController();
   final _qty = TextEditingController();
   final _challan = TextEditingController();
@@ -1557,28 +1635,32 @@ class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        0,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Add truck')),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: FilledButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? 'Adding…' : 'Add truck'),
+          ),
+        ),
       ),
-      child: SingleChildScrollView(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Add truck', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
             TextField(
               controller: _truck,
+              textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(labelText: 'Truck no.'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _qty,
+              textInputAction: TextInputAction.next,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
@@ -1609,11 +1691,6 @@ class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
               label: Text(
                 _photo == null ? 'Challan photo (optional)' : _photo!.name,
               ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_saving ? 'Adding…' : 'Add truck'),
             ),
           ],
         ),

@@ -227,18 +227,21 @@ class ClientApiService {
     await _dio.post('$_base/orders/$orderId/cancel', data: {'reason': reason});
   }
 
-  /// Reject a truck at site (only while REACHED and before its challan).
+  /// Reject a truck at site (only while REACHED and before its challan), or
+  /// with [rejectedQty] only that much of it (the rest is billed).
   Future<void> rejectTruck(
     String orderId,
     String tmId,
     String reason, {
     String? note,
+    double? rejectedQty,
   }) async {
     await _dio.post(
       '$_base/orders/$orderId/tm/$tmId/reject',
       data: {
         'reason': reason,
         if (note != null && note.isNotEmpty) 'note': note,
+        if (rejectedQty != null) 'rejectedQty': rejectedQty,
       },
     );
   }

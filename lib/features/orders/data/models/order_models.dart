@@ -51,6 +51,7 @@ class TmDetail {
     this.approvalStatus = 'PENDING',
     this.rejectionReason,
     this.rejectedByType,
+    this.rejectedQty,
     required this.tmNumber,
     required this.truckNo,
     required this.qty,
@@ -72,6 +73,9 @@ class TmDetail {
   /// CLIENT when the client rejected it at site, USER when the office did.
   final String? rejectedByType;
 
+  /// Part rejection: CBM wasted / refused at site; the rest is billed.
+  final double? rejectedQty;
+
   final String tmNumber;
   final String truckNo;
   final String qty;
@@ -89,12 +93,20 @@ class TmDetail {
 
   bool get isRejected => approvalStatus == 'REJECTED';
 
+  /// Part of the load can be refused once at site, until the office reviews it.
+  bool get canPartReject =>
+      const ['REACHED', 'DELIVERED', 'COMPLETED'].contains(status) &&
+      approvalStatus == 'PENDING';
+
+  bool get isPartRejected => !isRejected && (rejectedQty ?? 0) > 0;
+
   factory TmDetail.fromJson(Map<String, dynamic> json) => TmDetail(
     id: json['id'] as String? ?? '',
     status: json['status'] as String? ?? 'ASSIGNED',
     approvalStatus: json['approvalStatus'] as String? ?? 'PENDING',
     rejectionReason: json['rejectionReason'] as String?,
     rejectedByType: json['rejectedByType'] as String?,
+    rejectedQty: (json['rejectedQty'] as num?)?.toDouble(),
     tmNumber: json['tmNumber'] as String? ?? '',
     truckNo: json['truckNo'] as String? ?? '',
     qty: json['qty'] as String? ?? '',
