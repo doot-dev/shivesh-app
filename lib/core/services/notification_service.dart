@@ -75,7 +75,7 @@ class NotificationService {
 
     // Init flutter_local_notifications (for foreground display)
     const initSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS: DarwinInitializationSettings(),
     );
     await _localNotifications.initialize(

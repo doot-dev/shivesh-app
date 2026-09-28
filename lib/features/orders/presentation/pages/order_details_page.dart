@@ -697,6 +697,12 @@ class _SecondaryDetails extends StatelessWidget {
           value: c.phone.isEmpty ? c.name : '${c.name}\n${c.phone}',
           phone: c.phone,
         ),
+      for (final x in order.extras)
+        _DetailRow(
+          icon: Icons.add_card_outlined,
+          label: 'Extra',
+          value: '${x.name} · ${inr(x.amount)}',
+        ),
       if (order.placedBy != null)
         _DetailRow(
           icon: Icons.person_outline_rounded,

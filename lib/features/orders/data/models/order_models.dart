@@ -166,7 +166,11 @@ class Order {
     this.creditPosition,
     this.creditAvailable,
     this.creditAfterThisOrder,
+    this.extras = const [],
   });
+
+  /// Extra services the office added (pumping, part load …), billed with it.
+  final List<({String name, double amount})> extras;
 
   /// The field technicians on the order — the client's contact persons.
   final List<({String name, String phone})> contacts;
@@ -228,6 +232,7 @@ class Order {
     creditPosition: creditPosition,
     creditAvailable: creditAvailable,
     creditAfterThisOrder: creditAfterThisOrder,
+    extras: extras,
   );
 
   /// True when a real technician is attached.
@@ -283,6 +288,13 @@ class Order {
       creditPosition: (json['creditPosition'] as num?)?.toInt(),
       creditAvailable: (preview?['available'] as num?)?.toDouble(),
       creditAfterThisOrder: (preview?['afterThisOrder'] as num?)?.toDouble(),
+      extras: [
+        for (final x in (json['extras'] as List<dynamic>? ?? const []))
+          (
+            name: (x as Map<String, dynamic>)['name'] as String? ?? '',
+            amount: (x['amount'] as num?)?.toDouble() ?? 0,
+          ),
+      ],
       site: project?['siteName'] as String?,
       deliveryAddress: json['deliveryAddress'] as String?,
       tmDetails: tmList

@@ -695,7 +695,25 @@ class _Statement extends ConsumerWidget {
             padding: _listPadding,
             children: [
               _BalanceStrip(opening: opening, closing: closing),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              // The month as a Tally-style ledger PDF (2026-09-29).
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    String d(DateTime x) =>
+                        '${x.year}-${x.month.toString().padLeft(2, '0')}-${x.day.toString().padLeft(2, '0')}';
+                    openServerFile(
+                      context,
+                      '/api/v1/mobile/client/ledger/statement?from=${d(month)}&to=${d(DateTime(month.year, month.month + 1, 0))}&format=pdf',
+                      title: 'Ledger · ${DateFormat.yMMM().format(month)}',
+                    );
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: const Text('Ledger PDF'),
+                ),
+              ),
+              const SizedBox(height: 4),
               if (monthRows.isEmpty)
                 EmptyState(
                   icon: Icons.account_balance_wallet_outlined,

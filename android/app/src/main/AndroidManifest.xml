@@ -40,6 +40,14 @@
              background. It MUST match _channelId in notification_service.dart —
              a mismatch silently routes them to a low-importance channel, so they
              arrive with no sound and no heads-up banner. -->
+        <!-- Status-bar icon must be a white silhouette: Pixel/stock Android draws
+             a full-colour launcher icon as a grey square. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="shivesh_high_importance" />
