@@ -561,3 +561,71 @@ class SectionHeader extends StatelessWidget {
     );
   }
 }
+
+/// Credit health (2026-09-28): the server's GREEN / ORANGE / RED band, never
+/// the amounts. [usedPct] fills the bar. It warns only; nothing is blocked.
+class CreditBandBar extends StatelessWidget {
+  const CreditBandBar({
+    super.key,
+    required this.band,
+    this.usedPct,
+    this.footer,
+  });
+
+  final String band;
+  final int? usedPct;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final (tone, label, note) = switch (band) {
+      'RED' => (Tone.err, 'Critical', 'Overdue or over the credit limit'),
+      'ORANGE' => (Tone.warn, 'Watch', 'Close to the credit limit'),
+      _ => (Tone.ok, 'Good', 'Credit is healthy'),
+    };
+    final (bg, fg, solidBg, _) = _toneColors(tone);
+    final t = Theme.of(context).textTheme;
+    return Semantics(
+      label: 'Credit health $label. $note',
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Credit health',
+                    style: t.labelMedium?.copyWith(
+                      color: fg,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                StatusBadge(label, tone: tone, solid: true),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: (usedPct ?? 100).clamp(4, 100) / 100,
+                minHeight: 8,
+                color: solidBg,
+                backgroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(note, style: t.bodySmall?.copyWith(color: fg)),
+            if (footer != null) ...[const SizedBox(height: 6), footer!],
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_widgets.dart' show CreditBandBar;
 import '../../../auth/providers/auth_providers.dart';
 import 'package:go_router/go_router.dart';
 import '../../../bills/presentation/pages/bills_page.dart' show inr;
@@ -174,7 +175,7 @@ class _ProfileBody extends ConsumerWidget {
                     ),
                     const SizedBox(height: 24),
                   ],
-                  if (ref.can('account.view')) ...[
+                  ...[
                     Text(
                       'Credit',
                       style: theme.textTheme.titleSmall?.copyWith(
@@ -363,53 +364,58 @@ class _LiveCreditCard extends ConsumerWidget {
         data: (c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Payment due',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              inr(c.outstanding),
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (c.overdueAmount > 0)
+            CreditBandBar(band: c.band, usedPct: c.usedPct),
+            if (c.hasDues) ...[
+              const SizedBox(height: 14),
               Text(
-                '${inr(c.overdueAmount)} overdue',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: c.utilisation,
-                backgroundColor: AppColors.border,
-                color: c.flag == 'OK' ? AppColors.primary : Colors.red,
-                minHeight: 8,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              c.limit > 0
-                  ? 'Used ${inr(c.used)} of ${inr(c.limit + c.extraUnused + c.extraInUse)} · available ${inr(c.available)}'
-                  : 'Credit limit not set',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textMuted,
-              ),
-            ),
-            if (c.extraUnused > 0 || c.extraInUse > 0)
-              Text(
-                'Includes extra credit ${inr(c.extraUnused)} unused${c.extraInUse > 0 ? ' · ${inr(c.extraInUse)} in use' : ''}',
+                'Payment due',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: AppColors.textMuted,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                inr(c.outstanding),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (c.overdueAmount > 0)
+                Text(
+                  '${inr(c.overdueAmount)} overdue',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+            if (c.hasLimit) ...[
+              const SizedBox(height: 8),
+              Text(
+                c.limit > 0
+                    ? 'Used ${inr(c.used)} of ${inr(c.limit + c.extraUnused + c.extraInUse)} · available ${inr(c.available)}'
+                    : 'Credit limit not set',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+              if (c.extraUnused > 0 || c.extraInUse > 0)
+                Text(
+                  'Includes extra credit ${inr(c.extraUnused)} unused${c.extraInUse > 0 ? ' · ${inr(c.extraInUse)} in use' : ''}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              if (c.availableAfterPending != null &&
+                  c.limit > 0 &&
+                  c.availableAfterPending != c.available)
+                Text(
+                  'Once open orders are delivered: ${inr(c.availableAfterPending!)} available',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+            ],
             if (c.advance > 0)
               Text(
                 'Advance with Shivesh: ${inr(c.advance)}',

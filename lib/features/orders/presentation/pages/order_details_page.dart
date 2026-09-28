@@ -15,6 +15,8 @@ import '../../../../core/widgets/file_viewer.dart';
 import '../../../cube_test/presentation/pages/order_cube_tests_page.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../bills/presentation/pages/bills_page.dart' show inr;
 
 /// Order details + live updates on ONE screen.
 ///
@@ -205,6 +207,28 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                           ),
                         ),
                       ),
+
+                      if (order.creditBand != null)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: CreditBandBar(
+                              band: order.creditBand!,
+                              footer: order.creditAfterThisOrder == null
+                                  ? null
+                                  : Text(
+                                      'Available ${inr(order.creditAvailable ?? 0)} → '
+                                      '${inr(order.creditAfterThisOrder!)} once this order is delivered',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                            ),
+                          ),
+                        ),
 
                       if (ref.can('cubeTests.view'))
                         SliverToBoxAdapter(
@@ -659,11 +683,19 @@ class _SecondaryDetails extends StatelessWidget {
           label: 'Delivery',
           value: order.deliveryAddress!,
         ),
-      _DetailRow(
-        icon: Icons.engineering_outlined,
-        label: 'Technician',
-        value: order.fieldTechnician,
-      ),
+      if (order.contacts.isEmpty)
+        const _DetailRow(
+          icon: Icons.support_agent_outlined,
+          label: 'Contact person',
+          value: 'Not assigned yet',
+        ),
+      for (final c in order.contacts)
+        _DetailRow(
+          icon: Icons.support_agent_outlined,
+          label: 'Contact person',
+          value: c.phone.isEmpty ? c.name : '${c.name}\n${c.phone}',
+          phone: c.phone,
+        ),
       if (order.placedBy != null)
         _DetailRow(
           icon: Icons.person_outline_rounded,
@@ -692,11 +724,15 @@ class _DetailRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.phone,
   });
 
   final IconData icon;
   final String label;
   final String value;
+
+  /// Shows a call button when set.
+  final String? phone;
 
   @override
   Widget build(BuildContext context) {
@@ -725,6 +761,13 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ),
+        if (phone != null && phone!.isNotEmpty)
+          IconButton(
+            tooltip: 'Call',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.call_rounded, color: AppColors.primary),
+            onPressed: () => launchUrl(Uri.parse('tel:$phone')),
+          ),
       ],
     );
   }

@@ -161,7 +161,20 @@ class Order {
     this.comments = const [],
     this.rawStatus = '',
     this.placedBy,
+    this.contacts = const [],
+    this.creditBand,
+    this.creditAvailable,
+    this.creditAfterThisOrder,
   });
+
+  /// The field technicians on the order — the client's contact persons.
+  final List<({String name, String phone})> contacts;
+
+  /// GREEN / ORANGE / RED for everyone; the two amounts only reach the Owner
+  /// (what stays free now, and once this order is delivered).
+  final String? creditBand;
+  final double? creditAvailable;
+  final double? creditAfterThisOrder;
 
   /// docs/06: who placed it from the app, e.g. "Rakesh Pawar (Site Engineer)".
   final String? placedBy;
@@ -208,6 +221,10 @@ class Order {
     comments: comments ?? this.comments,
     rawStatus: rawStatus ?? this.rawStatus,
     placedBy: placedBy,
+    contacts: contacts,
+    creditBand: creditBand,
+    creditAvailable: creditAvailable,
+    creditAfterThisOrder: creditAfterThisOrder,
   );
 
   /// True when a real technician is attached.
@@ -224,7 +241,18 @@ class Order {
 
   factory Order.fromJson(Map<String, dynamic> json) {
     final project = json['project'] as Map<String, dynamic>?;
-    final assignedTo = json['assignedTo'] as Map<String, dynamic>?;
+    // An order can carry several technicians (`technicians[].user`); the old
+    // single `assignedTo` is gone from the API, which left "Not assigned".
+    final contacts = [
+      for (final t in (json['technicians'] as List<dynamic>?) ?? const [])
+        if ((t as Map<String, dynamic>)['user'] is Map<String, dynamic>)
+          (
+            name: (t['user'] as Map<String, dynamic>)['name'] as String? ?? '',
+            phone:
+                (t['user'] as Map<String, dynamic>)['phone'] as String? ?? '',
+          ),
+    ];
+    final preview = json['creditPreview'] as Map<String, dynamic>?;
     final tmList = (json['tmDetails'] as List<dynamic>?) ?? [];
     final commentList = (json['comments'] as List<dynamic>?) ?? [];
     final placer = json['placedBy'] as Map<String, dynamic>?;
@@ -244,7 +272,13 @@ class Order {
       product: json['productName'] as String? ?? '',
       date: json['date'] as String? ?? '',
       time: json['time'] as String? ?? '',
-      fieldTechnician: assignedTo?['name'] as String? ?? 'Not assigned',
+      fieldTechnician: contacts.isEmpty
+          ? 'Not assigned'
+          : contacts.map((c) => c.name).join(', '),
+      contacts: contacts,
+      creditBand: json['creditBand'] as String?,
+      creditAvailable: (preview?['available'] as num?)?.toDouble(),
+      creditAfterThisOrder: (preview?['afterThisOrder'] as num?)?.toDouble(),
       site: project?['siteName'] as String?,
       deliveryAddress: json['deliveryAddress'] as String?,
       tmDetails: tmList

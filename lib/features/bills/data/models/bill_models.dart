@@ -15,7 +15,23 @@ class CreditPosition {
     this.extraUnused = 0,
     this.extraInUse = 0,
     this.advance = 0,
+    this.band = 'GREEN',
+    this.usedPct = 0,
+    this.hasLimit = false,
+    this.hasDues = false,
+    this.availableAfterPending,
   });
+
+  /// GREEN / ORANGE / RED and 0–100 fill: every contact gets these.
+  final String band;
+  final int usedPct;
+
+  /// Only the Owner gets the limit and amounts; Accounts also gets dues.
+  final bool hasLimit;
+  final bool hasDues;
+
+  /// What stays free once every open order is delivered (Owner only).
+  final double? availableAfterPending;
 
   /// W35 one-time extra credit, and money paid but not yet adjusted (D17).
   final double extraUnused;
@@ -55,6 +71,11 @@ class CreditPosition {
     extraUnused: _d(j['extraUnused']),
     extraInUse: _d(j['extraInUse']),
     advance: _d(j['advance']),
+    band: j['band'] as String? ?? 'GREEN',
+    usedPct: (j['usedPct'] as num?)?.toInt() ?? 0,
+    hasLimit: j.containsKey('limit'),
+    hasDues: j.containsKey('outstanding'),
+    availableAfterPending: (j['availableAfterPending'] as num?)?.toDouble(),
   );
 }
 
