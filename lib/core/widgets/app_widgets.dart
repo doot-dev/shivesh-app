@@ -632,7 +632,7 @@ class CreditBandBar extends StatelessWidget {
             const SizedBox(height: 6),
             LayoutBuilder(
               builder: (context, box) => SizedBox(
-                height: 22,
+                height: 30,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -658,11 +658,11 @@ class CreditBandBar extends StatelessWidget {
                       ),
                     ),
                     Positioned(
-                      left: box.maxWidth * pos - 7,
-                      top: 0,
+                      left: box.maxWidth * pos - 13,
+                      top: -4,
                       child: const Icon(
                         Icons.arrow_drop_down_rounded,
-                        size: 14,
+                        size: 26,
                         color: Color(0xFF111827),
                       ),
                     ),
