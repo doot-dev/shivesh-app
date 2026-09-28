@@ -12,6 +12,7 @@ import '../../../orders/presentation/widgets/order_card.dart';
 import '../../../orders/providers/orders_providers.dart';
 import '../../data/models/home_models.dart';
 import '../../providers/home_providers.dart';
+import '../../../bills/providers/bill_providers.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -24,6 +25,7 @@ class HomePage extends ConsumerWidget {
     // docs/06: greet the person, and offer ordering only if their role may order.
     final me = ref.watch(accessProvider).value;
     final canOrder = ref.can('orders.create');
+    final credit = ref.watch(creditProvider).value;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -32,6 +34,7 @@ class HomePage extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(activeOrdersProvider);
           ref.invalidate(projectsProvider);
+          ref.invalidate(creditProvider);
           // Give the refresh spinner a beat so the gesture feels acknowledged.
           await Future<void>.delayed(const Duration(milliseconds: 350));
         },
@@ -48,6 +51,20 @@ class HomePage extends ConsumerWidget {
               activeCount: activeOrdersAsync.value?.length,
               projectCount: projectsAsync.value?.length,
             ),
+
+            // ── Credit score (every role; amounts stay on Profile for the Owner)
+            if (credit != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: FadeSlideIn(
+                    child: CreditBandBar(
+                      band: credit.band,
+                      position: credit.position,
+                    ),
+                  ),
+                ),
+              ),
 
             // ── Active orders ────────────────────────────────────────────
             SliverToBoxAdapter(

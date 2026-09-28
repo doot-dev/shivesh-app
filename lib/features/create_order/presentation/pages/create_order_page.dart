@@ -11,6 +11,8 @@ import '../../../home/data/models/home_models.dart';
 import '../../../home/providers/home_providers.dart';
 import '../../../orders/providers/orders_providers.dart';
 import '../../providers/create_order_providers.dart';
+import '../../../bills/providers/bill_providers.dart';
+import '../../../../core/widgets/app_widgets.dart' show CreditBandBar;
 
 class CreateOrderPage extends ConsumerStatefulWidget {
   const CreateOrderPage({super.key});
@@ -288,6 +290,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
   @override
   Widget build(BuildContext context) {
     final projectsAsync = ref.watch(projectsProvider);
+    final credit = ref.watch(creditProvider).value;
     final projectProductsAsync = _selectedProjectId != null
         ? ref.watch(projectProductsProvider(_selectedProjectId!))
         : null;
@@ -324,6 +327,11 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
           children: [
+            // The client's credit score while booking (warns, never blocks).
+            if (credit != null) ...[
+              CreditBandBar(band: credit.band, position: credit.position),
+              const SizedBox(height: 20),
+            ],
             // ── Project Name ──────────────────────────────────────────────
             _FieldLabel('Project Name'),
             const SizedBox(height: 8),
