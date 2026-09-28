@@ -9,7 +9,7 @@ import 'storage_providers.dart';
 /// MUST point at the same server, so the socket layer reads this too.
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://192.168.1.6:3001',
+  defaultValue: 'http://31.97.206.154:3001',
 );
 
 final dioProvider = Provider<Dio>((ref) {
