@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
@@ -28,9 +29,13 @@ class DioClient {
     // After auth (so the token is on the request), before logging.
     dio.interceptors.add(OfflineCacheInterceptor());
 
-    dio.interceptors.add(
-      PrettyDioLogger(requestBody: true, responseBody: true, compact: true),
-    );
+    // Debug builds only: it prints request bodies, i.e. passwords and tokens,
+    // to logcat, where any app with log access could read them.
+    if (kDebugMode) {
+      dio.interceptors.add(
+        PrettyDioLogger(requestBody: true, responseBody: true, compact: true),
+      );
+    }
 
     return dio;
   }

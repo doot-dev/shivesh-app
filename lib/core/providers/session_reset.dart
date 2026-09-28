@@ -52,7 +52,10 @@ void resetSessionData(Ref ref) {
   ref.invalidate(projectProductsProvider);
   ref.invalidate(projectNamesProvider);
 
-  // The month picked on the Bills screen
+  // Bills, statement, credit, and the month picked on the Bills screen
+  ref.invalidate(billsProvider);
+  ref.invalidate(ledgerProvider);
+  ref.invalidate(creditProvider);
   ref.invalidate(billMonthProvider);
 
   // Cube tests + the filter driving them

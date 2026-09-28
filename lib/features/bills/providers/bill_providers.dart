@@ -2,15 +2,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/client_api_provider.dart';
 import '../../../core/widgets/month_bar.dart';
+import '../../orders/providers/orders_providers.dart' show refreshOnOrderEvents;
 import '../data/models/bill_models.dart';
 
+// Kept for the session (not autoDispose): switching tabs used to refetch all
+// three every time. Pull-to-refresh and payments invalidate them; logout
+// clears them in resetSessionData.
+
 /// The client's real credit position (P1.14).
-final creditProvider = FutureProvider.autoDispose<CreditPosition>((ref) {
+final creditProvider = FutureProvider<CreditPosition>((ref) {
+  refreshOnOrderEvents(ref); // a delivered truck or a new bill moves credit
   return ref.read(clientApiProvider).getCredit();
 });
 
 /// Statement: bills and payments with a running balance (Phase 2).
-final ledgerProvider = FutureProvider.autoDispose<List<LedgerRow>>((ref) {
+final ledgerProvider = FutureProvider<List<LedgerRow>>((ref) {
   return ref.read(clientApiProvider).getLedger();
 });
 
@@ -27,7 +33,8 @@ final billMonthProvider = NotifierProvider<BillMonthNotifier, DateTime>(
 );
 
 /// The client's issued bills (P1.16) for the selected month, by invoice date.
-final billsProvider = FutureProvider.autoDispose<List<ClientBill>>((ref) {
+final billsProvider = FutureProvider<List<ClientBill>>((ref) {
+  refreshOnOrderEvents(ref); // "your bill is ready" arrives as a notification
   final month = ref.watch(billMonthProvider);
   return ref
       .read(clientApiProvider)

@@ -14,7 +14,7 @@ import '../data/models/order_models.dart';
 /// NOTE: this self-invalidates via `ref.invalidateSelf`, deliberately. Routing
 /// it through a shared "refresh" provider that the lists watch creates a
 /// circular dependency (the refresher would invalidate its own dependents).
-void _refreshOnOrderEvents(Ref ref) {
+void refreshOnOrderEvents(Ref ref) {
   ref.listen(socketEventsProvider, (_, next) {
     next.whenData((event) {
       if (event.type == 'order:status' ||
@@ -27,12 +27,12 @@ void _refreshOnOrderEvents(Ref ref) {
 }
 
 final activeOrdersProvider = FutureProvider<List<Order>>((ref) {
-  _refreshOnOrderEvents(ref);
+  refreshOnOrderEvents(ref);
   return ref.read(clientApiProvider).getOrders(type: 'active');
 });
 
 final pastOrdersProvider = FutureProvider<List<Order>>((ref) {
-  _refreshOnOrderEvents(ref);
+  refreshOnOrderEvents(ref);
   return ref.read(clientApiProvider).getOrders(type: 'past');
 });
 
@@ -112,13 +112,13 @@ final orderFilterProvider = NotifierProvider<OrderFilterNotifier, OrderFilter>(
 ///
 /// Always hits the server with the month window; the unfiltered
 /// active/past providers above stay for Home, which is not filtered.
-/// It calls [_refreshOnOrderEvents] too, so live status pushes keep the list
+/// It calls [refreshOnOrderEvents] too, so live status pushes keep the list
 /// current.
 final searchedOrdersProvider = FutureProvider.family<List<Order>, OrderFilter>((
   ref,
   filter,
 ) {
-  _refreshOnOrderEvents(ref);
+  refreshOnOrderEvents(ref);
   return ref
       .read(clientApiProvider)
       .getOrders(
