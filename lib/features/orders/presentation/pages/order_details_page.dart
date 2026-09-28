@@ -1432,8 +1432,9 @@ class _DetailsSkeleton extends StatelessWidget {
   }
 }
 
-/// The site adds a truck with its challan (trucks.add, 2026-09-29): truck no.,
-/// quantity, challan no. and an optional photo of the challan.
+/// The site adds a truck with its challan (trucks.add, 2026-09-29): the same
+/// details as the field app — truck, quantity, challan no., batch start / end
+/// from the challan, dispatch / arrival times and a photo of the challan.
 class _AddTruckSheet extends ConsumerStatefulWidget {
   const _AddTruckSheet({required this.orderId});
   final String orderId;
@@ -1447,7 +1448,41 @@ class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
   final _qty = TextEditingController();
   final _challan = TextEditingController();
   ({String path, String name})? _photo;
+  TimeOfDay? _batchStart;
+  TimeOfDay? _batchEnd;
+  TimeOfDay? _dispatch;
+  TimeOfDay? _arrival;
   bool _saving = false;
+
+  String _hhmm(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pick(void Function(TimeOfDay) set, TimeOfDay? current) async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: current ?? TimeOfDay.now(),
+    );
+    if (t != null) setState(() => set(t));
+  }
+
+  Widget _timeRow(
+    String label,
+    TimeOfDay? value,
+    void Function(TimeOfDay) set,
+  ) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    dense: true,
+    leading: const Icon(Icons.schedule_outlined),
+    title: Text(label),
+    trailing: Text(
+      value == null ? 'Select' : value.format(context),
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+        color: value == null ? AppColors.textMuted : AppColors.primary,
+      ),
+    ),
+    onTap: () => _pick(set, value),
+  );
 
   @override
   void dispose() {
@@ -1468,10 +1503,14 @@ class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
   Future<void> _save() async {
     if (_truck.text.trim().isEmpty ||
         (double.tryParse(_qty.text.trim()) ?? 0) <= 0 ||
-        _challan.text.trim().isEmpty) {
+        _challan.text.trim().isEmpty ||
+        _batchStart == null ||
+        _batchEnd == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enter truck no., quantity and challan no.'),
+          content: Text(
+            'Enter truck no., quantity, challan no. and the batch start / end time',
+          ),
         ),
       );
       return;
@@ -1485,6 +1524,10 @@ class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
             truckNo: _truck.text.trim().toUpperCase(),
             qty: _qty.text.trim(),
             challanNo: _challan.text.trim(),
+            batchStartTime: _hhmm(_batchStart!),
+            batchEndTime: _hhmm(_batchEnd!),
+            dispatchTime: _dispatch == null ? null : _hhmm(_dispatch!),
+            arrivalTime: _arrival == null ? null : _hhmm(_arrival!),
             photo: _photo,
           );
       ref.read(liveOrderProvider(widget.orderId).notifier).refresh();
@@ -1521,42 +1564,59 @@ class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
         20,
         20 + MediaQuery.viewInsetsOf(context).bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Add truck', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _truck,
-            textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(labelText: 'Truck no.'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _qty,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Quantity (CBM)'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _challan,
-            decoration: const InputDecoration(labelText: 'Challan no.'),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _saving ? null : _pickPhoto,
-            icon: const Icon(Icons.photo_camera_outlined),
-            label: Text(
-              _photo == null ? 'Challan photo (optional)' : _photo!.name,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Add truck', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _truck,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'Truck no.'),
             ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Adding…' : 'Add truck'),
-          ),
-        ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _qty,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Quantity (CBM)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _challan,
+              decoration: const InputDecoration(labelText: 'Challan no.'),
+            ),
+            const SizedBox(height: 12),
+            _timeRow('Batch start', _batchStart, (t) => _batchStart = t),
+            _timeRow('Batch end', _batchEnd, (t) => _batchEnd = t),
+            _timeRow(
+              'Dispatched from plant (optional)',
+              _dispatch,
+              (t) => _dispatch = t,
+            ),
+            _timeRow(
+              'Arrived at site (optional)',
+              _arrival,
+              (t) => _arrival = t,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _saving ? null : _pickPhoto,
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: Text(
+                _photo == null ? 'Challan photo (optional)' : _photo!.name,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: _saving ? null : _save,
+              child: Text(_saving ? 'Adding…' : 'Add truck'),
+            ),
+          ],
+        ),
       ),
     );
   }

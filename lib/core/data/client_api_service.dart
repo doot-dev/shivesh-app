@@ -311,12 +311,20 @@ class ClientApiService {
     required String truckNo,
     required String qty,
     required String challanNo,
+    required String batchStartTime,
+    required String batchEndTime,
+    String? dispatchTime,
+    String? arrivalTime,
     ({String path, String name})? photo,
   }) async {
     final form = FormData.fromMap({
       'truckNo': truckNo,
       'qty': qty,
       'challanNo': challanNo,
+      'batchStartTime': batchStartTime,
+      'batchEndTime': batchEndTime,
+      'dispatchTime': ?dispatchTime,
+      'arrivalTime': ?arrivalTime,
     });
     if (photo != null) {
       form.files.add(
