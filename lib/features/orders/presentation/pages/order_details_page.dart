@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/access_provider.dart';
@@ -266,16 +267,31 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                           ),
                         ),
 
-                      if (order.tmDetails.isNotEmpty) ...[
+                      if (order.tmDetails.isNotEmpty ||
+                          _canAddTruck(ref, order))
                         SliverToBoxAdapter(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
                             child: SectionHeader(
                               title: 'Delivery (TM)',
                               count: order.tmDetails.length,
+                              actionLabel: _canAddTruck(ref, order)
+                                  ? 'Add truck'
+                                  : null,
+                              onAction: _canAddTruck(ref, order)
+                                  ? () => showModalBottomSheet<void>(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      showDragHandle: true,
+                                      builder: (_) => _AddTruckSheet(
+                                        orderId: widget.orderId,
+                                      ),
+                                    )
+                                  : null,
                             ),
                           ),
                         ),
+                      if (order.tmDetails.isNotEmpty) ...[
                         SliverToBoxAdapter(
                           child: SizedBox(
                             height: 212,
@@ -1415,3 +1431,138 @@ class _DetailsSkeleton extends StatelessWidget {
     );
   }
 }
+
+/// The site adds a truck with its challan (trucks.add, 2026-09-29): truck no.,
+/// quantity, challan no. and an optional photo of the challan.
+class _AddTruckSheet extends ConsumerStatefulWidget {
+  const _AddTruckSheet({required this.orderId});
+  final String orderId;
+
+  @override
+  ConsumerState<_AddTruckSheet> createState() => _AddTruckSheetState();
+}
+
+class _AddTruckSheetState extends ConsumerState<_AddTruckSheet> {
+  final _truck = TextEditingController();
+  final _qty = TextEditingController();
+  final _challan = TextEditingController();
+  ({String path, String name})? _photo;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _truck.dispose();
+    _qty.dispose();
+    _challan.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickPhoto() async {
+    final res = await FilePicker.pickFiles(type: FileType.image);
+    final f = res?.files.firstOrNull;
+    if (f?.path != null) {
+      setState(() => _photo = (path: f!.path!, name: f.name));
+    }
+  }
+
+  Future<void> _save() async {
+    if (_truck.text.trim().isEmpty ||
+        (double.tryParse(_qty.text.trim()) ?? 0) <= 0 ||
+        _challan.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter truck no., quantity and challan no.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(clientApiProvider)
+          .addTruck(
+            widget.orderId,
+            truckNo: _truck.text.trim().toUpperCase(),
+            qty: _qty.text.trim(),
+            challanNo: _challan.text.trim(),
+            photo: _photo,
+          );
+      ref.read(liveOrderProvider(widget.orderId).notifier).refresh();
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Truck added')));
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        final data = e.response?.data;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data is Map && data['message'] is String
+                  ? data['message'] as String
+                  : 'Could not add the truck',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Add truck', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _truck,
+            textCapitalization: TextCapitalization.characters,
+            decoration: const InputDecoration(labelText: 'Truck no.'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _qty,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Quantity (CBM)'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _challan,
+            decoration: const InputDecoration(labelText: 'Challan no.'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _pickPhoto,
+            icon: const Icon(Icons.photo_camera_outlined),
+            label: Text(
+              _photo == null ? 'Challan photo (optional)' : _photo!.name,
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: Text(_saving ? 'Adding…' : 'Add truck'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The site may add trucks until the order is closed (trucks.add).
+bool _canAddTruck(WidgetRef ref, Order order) =>
+    ref.can('trucks.add') &&
+    !const ['COMPLETED', 'CANCELLED'].contains(order.rawStatus);

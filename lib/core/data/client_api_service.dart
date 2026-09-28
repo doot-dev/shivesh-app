@@ -305,6 +305,30 @@ class ClientApiService {
         .toList();
   }
 
+  /// The site adds a truck with its challan (trucks.add, 2026-09-29).
+  Future<void> addTruck(
+    String orderId, {
+    required String truckNo,
+    required String qty,
+    required String challanNo,
+    ({String path, String name})? photo,
+  }) async {
+    final form = FormData.fromMap({
+      'truckNo': truckNo,
+      'qty': qty,
+      'challanNo': challanNo,
+    });
+    if (photo != null) {
+      form.files.add(
+        MapEntry(
+          'challan',
+          await MultipartFile.fromFile(photo.path, filename: photo.name),
+        ),
+      );
+    }
+    await _dio.post('$_base/orders/$orderId/tm', data: form);
+  }
+
   Future<void> addComment(String orderId, String message) async {
     await _dio.post(
       '$_base/orders/$orderId/comments',
