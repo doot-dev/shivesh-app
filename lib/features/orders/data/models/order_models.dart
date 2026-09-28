@@ -163,6 +163,7 @@ class Order {
     this.placedBy,
     this.contacts = const [],
     this.creditBand,
+    this.creditPosition,
     this.creditAvailable,
     this.creditAfterThisOrder,
   });
@@ -173,6 +174,7 @@ class Order {
   /// GREEN / ORANGE / RED for everyone; the two amounts only reach the Owner
   /// (what stays free now, and once this order is delivered).
   final String? creditBand;
+  final int? creditPosition;
   final double? creditAvailable;
   final double? creditAfterThisOrder;
 
@@ -223,6 +225,7 @@ class Order {
     placedBy: placedBy,
     contacts: contacts,
     creditBand: creditBand,
+    creditPosition: creditPosition,
     creditAvailable: creditAvailable,
     creditAfterThisOrder: creditAfterThisOrder,
   );
@@ -277,6 +280,7 @@ class Order {
           : contacts.map((c) => c.name).join(', '),
       contacts: contacts,
       creditBand: json['creditBand'] as String?,
+      creditPosition: (json['creditPosition'] as num?)?.toInt(),
       creditAvailable: (preview?['available'] as num?)?.toDouble(),
       creditAfterThisOrder: (preview?['afterThisOrder'] as num?)?.toDouble(),
       site: project?['siteName'] as String?,

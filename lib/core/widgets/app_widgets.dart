@@ -562,36 +562,49 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// Credit health (2026-09-28): the server's GREEN / ORANGE / RED band, never
-/// the amounts. [usedPct] fills the bar. It warns only; nothing is blocked.
+/// Credit score gauge (2026-09-28): four segments green → yellow → orange →
+/// red and a marker at [position] (0–100), from the server. Never amounts.
+/// It warns only; nothing is blocked.
 class CreditBandBar extends StatelessWidget {
   const CreditBandBar({
     super.key,
     required this.band,
-    this.usedPct,
+    this.position,
     this.footer,
   });
 
   final String band;
-  final int? usedPct;
+  final int? position;
   final Widget? footer;
+
+  static const _segments = [
+    ('GREEN', 'Good', Color(0xFF16A34A)),
+    ('YELLOW', 'Fair', Color(0xFFFACC15)),
+    ('ORANGE', 'Watch', Color(0xFFF97316)),
+    ('RED', 'Critical', Color(0xFFDC2626)),
+  ];
+
+  static const _notes = {
+    'GREEN': 'Credit is healthy',
+    'YELLOW': 'Half the limit is in use',
+    'ORANGE': 'Close to the credit limit',
+    'RED': 'Overdue or over the credit limit',
+  };
 
   @override
   Widget build(BuildContext context) {
-    final (tone, label, note) = switch (band) {
-      'RED' => (Tone.err, 'Critical', 'Overdue or over the credit limit'),
-      'ORANGE' => (Tone.warn, 'Watch', 'Close to the credit limit'),
-      _ => (Tone.ok, 'Good', 'Credit is healthy'),
-    };
-    final (bg, fg, solidBg, _) = _toneColors(tone);
+    final i = _segments.indexWhere((s) => s.$1 == band).clamp(0, 3);
+    final seg = _segments[i];
+    final pos = ((position ?? i * 25 + 12) / 100).clamp(0.02, 0.98);
     final t = Theme.of(context).textTheme;
     return Semantics(
-      label: 'Credit health $label. $note',
+      label: 'Credit score ${seg.$2}. ${_notes[seg.$1]}',
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: bg,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,28 +613,83 @@ class CreditBandBar extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Credit health',
-                    style: t.labelMedium?.copyWith(
-                      color: fg,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    'Credit score',
+                    style: t.labelMedium?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
-                StatusBadge(label, tone: tone, solid: true),
+                Text(
+                  seg.$2,
+                  style: t.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    // Yellow text is unreadable on white; use a darker amber.
+                    color: seg.$1 == 'YELLOW'
+                        ? const Color(0xFFA16207)
+                        : seg.$3,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (usedPct ?? 100).clamp(4, 100) / 100,
-                minHeight: 8,
-                color: solidBg,
-                backgroundColor: Colors.white,
+            const SizedBox(height: 6),
+            LayoutBuilder(
+              builder: (context, box) => SizedBox(
+                height: 22,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Row(
+                          children: [
+                            for (final s in _segments)
+                              Expanded(
+                                child: Container(
+                                  height: 10,
+                                  color: s.$3.withValues(
+                                    alpha: s.$1 == seg.$1 ? 1 : 0.45,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: box.maxWidth * pos - 7,
+                      top: 0,
+                      child: const Icon(
+                        Icons.arrow_drop_down_rounded,
+                        size: 14,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                for (final s in _segments)
+                  Expanded(
+                    child: Text(
+                      s.$2.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: t.labelSmall?.copyWith(
+                        fontSize: 10,
+                        fontWeight: s.$1 == seg.$1
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 6),
-            Text(note, style: t.bodySmall?.copyWith(color: fg)),
+            Text(_notes[seg.$1]!, style: t.bodySmall),
             if (footer != null) ...[const SizedBox(height: 6), footer!],
           ],
         ),

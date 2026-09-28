@@ -177,8 +177,7 @@ class _CreateOrderPageState extends ConsumerState<CreateOrderPage> {
         .where((p) => p.productName == product)
         .map((p) => p.productGrade)
         .toSet();
-    final grade =
-        _selectedGrade ?? (grades.length == 1 ? grades.single : null);
+    final grade = _selectedGrade ?? (grades.length == 1 ? grades.single : null);
 
     setState(() {
       _selectedProduct = product;

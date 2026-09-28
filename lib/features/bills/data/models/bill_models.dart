@@ -17,6 +17,7 @@ class CreditPosition {
     this.advance = 0,
     this.band = 'GREEN',
     this.usedPct = 0,
+    this.position,
     this.hasLimit = false,
     this.hasDues = false,
     this.availableAfterPending,
@@ -25,6 +26,9 @@ class CreditPosition {
   /// GREEN / ORANGE / RED and 0–100 fill: every contact gets these.
   final String band;
   final int usedPct;
+
+  /// Where the gauge marker sits, 0–100.
+  final int? position;
 
   /// Only the Owner gets the limit and amounts; Accounts also gets dues.
   final bool hasLimit;
@@ -73,6 +77,7 @@ class CreditPosition {
     advance: _d(j['advance']),
     band: j['band'] as String? ?? 'GREEN',
     usedPct: (j['usedPct'] as num?)?.toInt() ?? 0,
+    position: (j['position'] as num?)?.toInt(),
     hasLimit: j.containsKey('limit'),
     hasDues: j.containsKey('outstanding'),
     availableAfterPending: (j['availableAfterPending'] as num?)?.toDouble(),

@@ -214,6 +214,7 @@ class _OrderDetailsPageState extends ConsumerState<OrderDetailsPage> {
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                             child: CreditBandBar(
                               band: order.creditBand!,
+                              position: order.creditPosition,
                               footer: order.creditAfterThisOrder == null
                                   ? null
                                   : Text(

@@ -364,7 +364,7 @@ class _LiveCreditCard extends ConsumerWidget {
         data: (c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CreditBandBar(band: c.band, usedPct: c.usedPct),
+            CreditBandBar(band: c.band, position: c.position),
             if (c.hasDues) ...[
               const SizedBox(height: 14),
               Text(
