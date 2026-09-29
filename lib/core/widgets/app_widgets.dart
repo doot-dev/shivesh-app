@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_colors.dart';
 import 'animations.dart';
@@ -697,3 +699,44 @@ class CreditBandBar extends StatelessWidget {
     );
   }
 }
+
+/// Tap on a phone number: a small sheet to call it or copy it.
+Future<void> showPhoneActions(
+  BuildContext context,
+  String phone, {
+  String? name,
+}) => showModalBottomSheet<void>(
+  context: context,
+  showDragHandle: true,
+  builder: (ctx) => SafeArea(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          title: Text(name?.isNotEmpty == true ? name! : phone),
+          subtitle: name?.isNotEmpty == true ? Text(phone) : null,
+        ),
+        ListTile(
+          leading: const Icon(Icons.call_rounded, color: AppColors.primary),
+          title: const Text('Call'),
+          onTap: () {
+            Navigator.pop(ctx);
+            launchUrl(Uri.parse('tel:$phone'));
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.copy_rounded, color: AppColors.primary),
+          title: const Text('Copy number'),
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: phone));
+            Navigator.pop(ctx);
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('$phone copied')));
+          },
+        ),
+        const SizedBox(height: 8),
+      ],
+    ),
+  ),
+);

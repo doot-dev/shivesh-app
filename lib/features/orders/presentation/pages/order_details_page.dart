@@ -16,7 +16,6 @@ import '../../../../core/widgets/file_viewer.dart';
 import '../../../cube_test/presentation/pages/order_cube_tests_page.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../bills/presentation/pages/bills_page.dart' show inr;
 
 /// Order details + live updates on ONE screen.
@@ -759,8 +758,9 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasPhone = phone != null && phone!.isNotEmpty;
 
-    return Row(
+    final row = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 17, color: AppColors.textMuted),
@@ -783,15 +783,19 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ),
-        if (phone != null && phone!.isNotEmpty)
+        if (hasPhone)
           IconButton(
-            tooltip: 'Call',
+            tooltip: 'Call or copy',
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.call_rounded, color: AppColors.primary),
-            onPressed: () => launchUrl(Uri.parse('tel:$phone')),
+            onPressed: () => showPhoneActions(context, phone!),
           ),
       ],
     );
+    // Tap the number itself too: call or copy it.
+    return hasPhone
+        ? InkWell(onTap: () => showPhoneActions(context, phone!), child: row)
+        : row;
   }
 }
 
