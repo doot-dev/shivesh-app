@@ -720,7 +720,7 @@ class _SecondaryDetails extends StatelessWidget {
       if (order.placedBy != null)
         _DetailRow(
           icon: Icons.person_outline_rounded,
-          label: 'Placed by',
+          label: 'Added by',
           value: order.placedBy!,
         ),
     ];

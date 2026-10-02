@@ -194,7 +194,8 @@ class Order {
   final double? creditAvailable;
   final double? creditAfterThisOrder;
 
-  /// docs/06: who placed it from the app, e.g. "Rakesh Pawar (Site Engineer)".
+  /// Who added it (2026-10-02): a contact, e.g. "Rakesh Pawar (Site Engineer)",
+  /// or the Shivesh office / field technician who booked it for the client.
   final String? placedBy;
 
   /// The server's single order status (NEW, CONFIRMED, DISPATCHED, …).
@@ -279,10 +280,19 @@ class Order {
     final placerRole =
         (placer?['role'] as Map<String, dynamic>?)?['name'] as String?;
 
+    final creatorName = json['createdByName'] as String?;
+    const creatorKind = {
+      'USER': 'Shivesh office',
+      'FIELD_TECH': 'field technician',
+      'CLIENT': 'owner',
+    };
+
     return Order(
-      placedBy: placer == null
+      placedBy: placer != null
+          ? '${placer['name']}${placerRole != null ? ' ($placerRole)' : ''}'
+          : creatorName == null
           ? null
-          : '${placer['name']}${placerRole != null ? ' ($placerRole)' : ''}',
+          : '$creatorName (${creatorKind[json['createdByType']] ?? 'Shivesh office'})',
       id: json['orderId'] as String? ?? json['id'] as String? ?? '',
       projectName: project?['projectName'] as String? ?? '',
       status: mapOrderStatus(json['status'] as String?),
